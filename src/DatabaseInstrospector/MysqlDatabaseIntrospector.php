@@ -17,7 +17,7 @@ final class MysqlDatabaseIntrospector implements DatabaseIntrospectorInterface
         return $this->pdo->query($sql)->fetch(\PDO::FETCH_OBJ)->Column_name;
     }
 
-    public function fetchFieldsTypes(string $databaseName, string $tableName): array
+    public function fetchColumnsTypes(string $databaseName, string $tableName): array
     {
         $stmt = $this->pdo->prepare('
             SELECT * 

@@ -2,8 +2,11 @@
 
 namespace Jeto\Elasticize\IndexSynchronizer;
 
+use Jeto\Elasticize\Mapping\MappingInterface;
+
 interface IndexSynchronizerInterface
 {
-    public function synchronizeIndices(string $databaseName): void;
-    public function populateIndices(string $databaseName, string $tableName): void;
+    public function synchronizeIndex(MappingInterface $mapping): void;
+
+    public function clearAndSynchronizeIndex(MappingInterface $mapping): void;
 }

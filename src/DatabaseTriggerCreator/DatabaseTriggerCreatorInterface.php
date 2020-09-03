@@ -2,7 +2,12 @@
 
 namespace Jeto\Elasticize\DatabaseTriggerCreator;
 
+use Jeto\Elasticize\Mapping\MappingInterface;
+
 interface DatabaseTriggerCreatorInterface
 {
-    public function createDatabaseTriggers(string $databaseName, string $tableName): void;
+    /**
+     * @param MappingInterface[] $mappings
+     */
+    public function createDatabaseTriggers(array $mappings): void;
 }

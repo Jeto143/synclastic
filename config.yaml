@@ -1,0 +1,16 @@
+mappings:
+
+  employees:
+    databaseName: employees
+    tableName: employees
+    indexName: employees
+    fieldMappingStrategy: automatic
+
+    fields:
+      first_name:
+        indexType: keyword
+
+      salary:
+        tableName: salaries
+        query: SELECT ...
+

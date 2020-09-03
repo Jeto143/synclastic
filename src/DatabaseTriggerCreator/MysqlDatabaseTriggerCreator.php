@@ -4,6 +4,9 @@ namespace Jeto\Elasticize\DatabaseTriggerCreator;
 
 use Jeto\Elasticize\DatabaseInstrospector\DatabaseIntrospectorInterface;
 use Jeto\Elasticize\DatabaseInstrospector\MysqlDatabaseIntrospector;
+use Jeto\Elasticize\FieldMapping\BasicFieldMappingInterface;
+use Jeto\Elasticize\FieldMapping\ComputedFieldMappingInterface;
+use Jeto\Elasticize\Mapping\MappingInterface;
 
 final class MysqlDatabaseTriggerCreator implements DatabaseTriggerCreatorInterface
 {
@@ -16,62 +19,87 @@ final class MysqlDatabaseTriggerCreator implements DatabaseTriggerCreatorInterfa
         $this->databaseIntrospector = $databaseIntrospector ?? new MysqlDatabaseIntrospector($pdo);
     }
 
-    public function createDatabaseTriggers(string $databaseName, string $tableName): void
+    /** @inheritDoc */
+    public function createDatabaseTriggers(array $mappings, bool $forceReset = false): void
     {
-        $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName($databaseName, $tableName);
+        foreach ($this->computeDataChangeInsertTuples($mappings) as $databaseName => $databaseTuples) {
+            $this->pdo->exec("USE {$databaseName}");
 
-        $this->pdo->exec("USE {$databaseName}");
+            $this->createDataChangeTable($forceReset);
 
-        $this->createDataChangeTable();
-        $this->recreateTriggers($tableName, $primaryKeyName);
+            foreach ($databaseTuples as $tableName => $tuples) {
+                foreach (['INSERT' => 'NEW', 'UPDATE' => 'NEW', 'DELETE' => 'OLD'] as $action => $tableAlias) {
+                    $triggerName = "TR_{$tableName}_{$action}";
+
+                    $tuplesSql = implode(",\n\t\t", $tuples);
+                    $tuplesSql = preg_replace('/\bthis(?=\.)/', $tableAlias, $tuplesSql);
+
+                    $this->pdo->exec("DROP TRIGGER IF EXISTS `{$triggerName}`");
+
+                    $this->pdo->exec(<<<SQL
+                    	CREATE TRIGGER `{$triggerName}` 
+                    	AFTER {$action} ON `{$tableName}` FOR EACH ROW 
+                    	INSERT IGNORE INTO `data_change` 
+                    		(`index`, `object_type`, `object_id`) 
+                    	VALUES 
+                    		{$tuplesSql}
+                    SQL);
+                }
+            }
+        }
     }
 
-    private function createDataChangeTable(): void
+    private function createDataChangeTable(bool $forceReset): void
     {
-        $sql = <<<SQL
+        if ($forceReset) {
+            $this->pdo->exec('DROP TABLE IF EXISTS data_change');
+        }
+
+        $this->pdo->exec(<<<SQL
             CREATE TABLE IF NOT EXISTS `data_change` (
                 `id` INT NOT NULL AUTO_INCREMENT,
-                `object_type` VARCHAR(255) NOT NULL DEFAULT '0',
-                `object_id` INT NOT NULL DEFAULT '0',
-                `action` ENUM('add','upd','del') NOT NULL DEFAULT 'add',
-                `processed` BIT(1) NULL DEFAULT b'0',
-                PRIMARY KEY (`id`)
+                `index` VARCHAR(255) NOT NULL,
+                `object_type` VARCHAR(255) NOT NULL,
+                `object_id` INT NOT NULL,
+                PRIMARY KEY (`id`),
+                CONSTRAINT object_unique UNIQUE (`object_type`, `object_id`) 
             )
             COLLATE='utf8_general_ci'
             ENGINE=InnoDB
             ;
-        SQL;
-
-        $this->pdo->exec($sql);
+        SQL);
     }
 
-    private function recreateTriggers(string $tableName, string $primaryKeyName): void
+    /**
+     * @param MappingInterface[] $mappings
+     * @return string[][][]
+     */
+    private function computeDataChangeInsertTuples(array $mappings): array
     {
-        $triggerName = "TR_{$tableName}_insert";
-        $this->pdo->exec("DROP TRIGGER IF EXISTS `{$triggerName}`");
-        $this->pdo->exec(<<<SQL
-            CREATE TRIGGER `{$triggerName}` 
-            AFTER INSERT ON `{$tableName}` FOR EACH ROW 
-            INSERT INTO `data_change` (object_type, object_id, action) 
-            VALUES ('{$tableName}', NEW.{$primaryKeyName}, 'add')
-            SQL);
+        $tuples = [];
 
-        $triggerName = "TR_{$tableName}_update";
-        $this->pdo->exec("DROP TRIGGER IF EXISTS `{$triggerName}`");
-        $this->pdo->exec(<<<SQL
-            CREATE TRIGGER `{$triggerName}`
-            AFTER UPDATE ON `{$tableName}` FOR EACH ROW 
-            INSERT INTO `data_change` (object_type, object_id, action) 
-            VALUES ('{$tableName}', OLD.{$primaryKeyName}, 'upd')
-            SQL);
+        foreach ($mappings as $mapping) {
+            $databaseName = $mapping->getDatabaseName();
+            $tableName = $mapping->getTableName();
+            $indexName = $mapping->getIndexName();
 
-        $triggerName = "TR_{$tableName}_delete";
-        $this->pdo->exec("DROP TRIGGER IF EXISTS `{$triggerName}`");
-        $this->pdo->exec(<<<SQL
-            CREATE TRIGGER `{$triggerName}` 
-            AFTER DELETE ON `{$tableName}` FOR EACH ROW 
-            INSERT INTO `data_change` (object_type, object_id, action) 
-            VALUES ('{$tableName}', OLD.{$primaryKeyName}, 'del')
-            SQL);
+            if ($mapping->getBasicFieldsMappings()) {
+                $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName($databaseName, $tableName);
+
+                $tuple = "('{$indexName}', '{$tableName}', this.{$primaryKeyName})";
+                $tuples[$databaseName][$tableName][] = $tuple;
+            }
+
+            foreach ($mapping->getComputedFieldsMappings() as $computedFieldMapping) {
+                $targetDatabaseName = $computedFieldMapping->getTargetDatabaseName();
+                $targetTableName = $computedFieldMapping->getTargetTableName();
+                $ownerIdQuery = $computedFieldMapping->getOwnerIdQuery();
+
+                $tuple = "('{$indexName}', '{$tableName}', ({$ownerIdQuery}))";
+                $tuples[$targetDatabaseName][$targetTableName][] = $tuple;
+            }
+        }
+
+        return $tuples;
     }
 }

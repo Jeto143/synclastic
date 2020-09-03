@@ -9,5 +9,5 @@ interface DatabaseIntrospectorInterface
     /**
      * @return string[]
      */
-    public function fetchFieldsTypes(string $databaseName, string $tableName): array;
+    public function fetchColumnsTypes(string $databaseName, string $tableName): array;
 }

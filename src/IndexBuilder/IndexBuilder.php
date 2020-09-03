@@ -5,35 +5,35 @@ namespace Jeto\Elasticize\IndexBuilder;
 use Elasticsearch\Client as ElasticClient;
 use Jeto\Elasticize\DatabaseInstrospector\DatabaseInstrospectorFactory;
 use Jeto\Elasticize\DatabaseInstrospector\DatabaseIntrospectorInterface;
+use Jeto\Elasticize\FieldMapping\BasicFieldMappingInterface;
+use Jeto\Elasticize\FieldMapping\FieldMappingInterface;
+use Jeto\Elasticize\Mapping\MappingInterface;
+use Jeto\Elasticize\MappingConfiguration\MappingConfigurationInterface;
 
 final class IndexBuilder implements IndexBuilderInterface
 {
     private ElasticClient $elastic;
-    private DatabaseIntrospectorInterface $databaseIntrospector;
 
-    public function __construct(
-        ElasticClient $elastic,
-        \PDO $pdo,
-        DatabaseIntrospectorInterface $databaseIntrospector = null
-    ) {
+    public function __construct(ElasticClient $elastic)
+    {
         $this->elastic = $elastic;
-        $this->databaseIntrospector = $databaseIntrospector ?? (new DatabaseInstrospectorFactory())->create($pdo);
     }
 
-    public function buildIndex(string $databaseName, string $tableName): void
+    public function buildIndex(MappingInterface $mapping): void
     {
-        $indexTargetFieldsTypes = $this->computeIndexTargetFieldsTypes($databaseName, $tableName);
+        $indexName = $mapping->getIndexName();
 
-        $existingIndex = $this->fetchIndex($tableName);
+        $existingIndex = $this->fetchIndex($indexName);
+        $indexTargetFieldsTypes = $this->computeIndexTargetFieldsTypes($mapping);
 
         if ($existingIndex !== null) {
             if ($this->indexRequiresReindexing($existingIndex, $indexTargetFieldsTypes)) {
-                $this->reindex($tableName, $indexTargetFieldsTypes);
+                $this->reindex($indexName, $indexTargetFieldsTypes);
             } else {
-                $this->updateIndexFields($tableName, $indexTargetFieldsTypes);
+                $this->updateIndexFields($indexName, $indexTargetFieldsTypes);
             }
         } else {
-            $this->createIndex($tableName, $indexTargetFieldsTypes);
+            $this->createIndex($indexName, $indexTargetFieldsTypes);
         }
     }
 
@@ -50,15 +50,19 @@ final class IndexBuilder implements IndexBuilderInterface
         return reset($indices);
     }
 
-    private function computeIndexTargetFieldsTypes(string $databaseName, string $tableName): array
+    /**
+     * @return string[]
+     */
+    private function computeIndexTargetFieldsTypes(MappingInterface $mapping): array
     {
-        $databaseFieldsTypes = $this->databaseIntrospector->fetchFieldsTypes($databaseName, $tableName);
+        /** @var FieldMappingInterface[] $fieldsMappings */
+        $fieldsMappings = array_merge($mapping->getBasicFieldsMappings(), $mapping->getComputedFieldsMappings());
 
         $indexFieldsTypes = [];
 
-        foreach ($databaseFieldsTypes as $fieldName => $type) {
-            $indexFieldsTypes[$fieldName] = [
-              'type' => $this->getElasticType($type)
+        foreach ($fieldsMappings as $basicFieldMapping) {
+            $indexFieldsTypes[$basicFieldMapping->getIndexFieldName()] = [
+                'type' => $basicFieldMapping->getIndexFieldType()
             ];
         }
 
@@ -127,17 +131,5 @@ final class IndexBuilder implements IndexBuilderInterface
         }
 
         return false;
-    }
-
-    private function getElasticType(string $sqlType): string
-    {
-        switch ($sqlType) {
-            case 'int':
-            case 'tinyint':
-                return 'integer';
-            case 'varchar':
-            default:
-                return 'text';
-        }
     }
 }

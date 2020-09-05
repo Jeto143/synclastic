@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Elasticize\Mapping;
+namespace Jeto\Sqlastic\Mapping;
 
 class Mapping implements MappingInterface
 {

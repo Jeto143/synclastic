@@ -1,9 +1,9 @@
 <?php
 
-namespace Jeto\Elasticize\Mapping;
+namespace Jeto\Sqlastic\Mapping;
 
-use Jeto\Elasticize\FieldMapping\BasicFieldMappingInterface;
-use Jeto\Elasticize\FieldMapping\ComputedFieldMappingInterface;
+use Jeto\Sqlastic\Mapping\FieldMapping\BasicFieldMappingInterface;
+use Jeto\Sqlastic\Mapping\FieldMapping\ComputedFieldMappingInterface;
 
 interface MappingInterface
 {

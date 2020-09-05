@@ -24,33 +24,43 @@
  * TODO: https://github.com/myclabs/php-enum
  * TODO: figure out whether/when to use "field" or "property" for elastic
  * TODO: move FieldMapping namespace into Mapping/ ?
- * TODO: CRON sync
- * TODO: add index column to data_change, and adjust triggers so as to insert lines for each matching index
  * TODO: @inheritDoc
  * TODO: look into psalm
- * TODO: use "true" / immutable DTOs for classes such as BasicMapping / ComputedMapping?
+ * TODO: use "true" / immutable DTOs for classes such as BasicFieldMapping / ComputedFieldMapping?
+ * TODO: learn more stuff about elastic, "local node", shards,
  *
+ * TODO: PgsqlDatabaseTriggerCreator
+ * TODO: mssql
+ * TODO: PHPUnit tests
+ * TODO: error handling
+ * TODO: protect DB identifier service
+ * TODO: consider removing factory interfaces: bit too much? if not, add one for each factory if missing
+ * TODO: add ability to filter which tuples get synced
+ * TODO: IndexSynchronizer is getting too fat OpieOP
+ *
+ * TODO: CRON sync
  * Rather than fields being either basic or computed, have 2 distinct collections: (basic_)?fields and computed_fields
  * Replicastic? SQLastic
  */
 
 use Elasticsearch\ClientBuilder;
-use Jeto\Elasticize\DatabaseInstrospector\MysqlDatabaseIntrospector;
-use Jeto\Elasticize\DatabaseTriggerCreator\MysqlDatabaseTriggerCreator;
-use Jeto\Elasticize\FieldMapping\ComputedFieldMapping;
-use Jeto\Elasticize\IndexBuilder\IndexBuilder;
-use Jeto\Elasticize\IndexSynchronizer\IndexSynchronizer;
-use Jeto\Elasticize\Mapping\BasicMapping;
-use Jeto\Elasticize\MappingConfiguration\MappingConfiguration;
-use Jeto\Elasticize\Searcher\Searcher;
+use Jeto\Sqlastic\Database\ConnectionSettings;
+use Jeto\Sqlastic\Database\Introspection\MysqlDatabaseIntrospector;
+use Jeto\Sqlastic\Database\Trigger\MysqlTriggerCreator;
+use Jeto\Sqlastic\Mapping\FieldMapping\ComputedFieldMapping;
+use Jeto\Sqlastic\Index\Builder\IndexBuilder;
+use Jeto\Sqlastic\Index\Synchronizer\IndexSynchronizer;
+use Jeto\Sqlastic\Mapping\BasicMapping;
 
 require 'vendor/autoload.php';
 
-$pdo = new PDO('mysql:host=db', 'root', 'asdf007', [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_EMULATE_PREPARES => false,
-//    PDO::ATTR_CASE => PDO::CASE_NATURAL
-]);
+//$pdo = new PDO('mysql:host=mysql', 'root', 'asdf007', [
+//    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+//    PDO::ATTR_EMULATE_PREPARES => false,
+////    PDO::ATTR_CASE => PDO::CASE_NATURAL
+//]);
+
+$connectionSettings = new ConnectionSettings('mysql', 'mysql', 'root', 'asdf007');
 
 $elastic = ClientBuilder::create()->setHosts(['http://elasticsearch:9200'])->build();
 
@@ -58,14 +68,14 @@ $databaseName = 'employees';
 $tableName = 'employees';
 $indexName = 'employees';
 
-$mapping = new class ($databaseName, $tableName, $indexName, new MysqlDatabaseIntrospector($pdo)) extends BasicMapping {
+$mapping = new class ($databaseName, $tableName, $indexName, new MysqlDatabaseIntrospector($connectionSettings)) extends BasicMapping {
     public function getComputedFieldsMappings(): array
     {
         return [
             new ComputedFieldMapping(
                 'employees',
                 'salaries',
-                'SELECT salary FROM salaries s WHERE s.emp_no = :id ORDER BY s.to_date DESC LIMIT 1',
+                'SELECT salary FROM employees.salaries s WHERE s.emp_no = :id ORDER BY s.to_date DESC LIMIT 1',
                 'this.emp_no',
                 'salary',
                 'integer'
@@ -77,8 +87,8 @@ $mapping = new class ($databaseName, $tableName, $indexName, new MysqlDatabaseIn
 //$mappingConfiguration = new MappingConfiguration([$mapping]);
 
 //(new IndexBuilder($elastic))->buildIndex($mapping);
-//(new MysqlDatabaseTriggerCreator($pdo))->createDatabaseTriggers([$mapping], true);
-(new IndexSynchronizer($elastic, $pdo))->clearAndSynchronizeIndex($mapping);
+//(new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping], true);
+(new IndexSynchronizer($elastic, $connectionSettings))->clearAndSynchronizeIndex($mapping);
 //(new IndexSynchronizer($elastic, $pdo))->synchronizeIndex($mapping);
 
 //$searcher = new Searcher($elastic);

@@ -1,9 +1,9 @@
 <?php
 
-namespace Jeto\Elasticize\Mapping;
+namespace Jeto\Sqlastic\Mapping;
 
-use Jeto\Elasticize\DatabaseInstrospector\DatabaseIntrospectorInterface;
-use Jeto\Elasticize\FieldMapping\BasicFieldMapping;
+use Jeto\Sqlastic\Database\Introspection\DatabaseIntrospectorInterface;
+use Jeto\Sqlastic\Mapping\FieldMapping\BasicFieldMapping;
 
 class BasicMapping implements MappingInterface
 {

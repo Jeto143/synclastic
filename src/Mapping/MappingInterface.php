@@ -2,24 +2,25 @@
 
 namespace Jeto\Sqlastic\Mapping;
 
-use Jeto\Sqlastic\Mapping\FieldMapping\BasicFieldMappingInterface;
-use Jeto\Sqlastic\Mapping\FieldMapping\ComputedFieldMappingInterface;
-
 interface MappingInterface
 {
-    public function getDatabaseName(): string;
-
-    public function getTableName(): string;
-
     public function getIndexName(): string;
 
     /**
-     * @return BasicFieldMappingInterface[]
+     * @return IndexField[]
      */
-    public function getBasicFieldsMappings(): array;
+    public function getIndexFields(): array;
+
+    public function getIdentifierFieldName(): string;
 
     /**
-     * @return ComputedFieldMappingInterface[]
+     * @return iterable|mixed[][]
      */
-    public function getComputedFieldsMappings(): array;
+    public function fetchIndexData(): iterable;
+
+    /**
+     * @param mixed $identifier
+     * @return mixed[]
+     */
+    public function fetchDocumentData($identifier): ?array;
 }

@@ -3,87 +3,70 @@
 namespace Jeto\Sqlastic\Index\Synchronizer;
 
 use Elasticsearch\Client as ElasticClient;
-use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\DataChange;
-use Jeto\Sqlastic\Database\DataConverter\DataConverterFactory;
 use Jeto\Sqlastic\Database\DataConverter\DataConverterInterface;
-use Jeto\Sqlastic\Database\Introspection\DatabaseInstrospectorFactory;
-use Jeto\Sqlastic\Database\Introspection\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Database\PdoFactory;
-use Jeto\Sqlastic\Mapping\FieldMapping\BasicFieldMappingInterface;
-use Jeto\Sqlastic\Mapping\FieldMapping\ComputedFieldMappingInterface;
+use Jeto\Sqlastic\Mapping\DataChange;
+use Jeto\Sqlastic\Mapping\DataChangeProviderInterface;
+use Jeto\Sqlastic\Mapping\IndexField;
 use Jeto\Sqlastic\Mapping\MappingInterface;
 
 final class IndexSynchronizer implements IndexSynchronizerInterface
 {
     private ElasticClient $elastic;
-    private \PDO $pdo;
-    private DatabaseIntrospectorInterface $databaseIntrospector;
-    private DataConverterInterface $dataConverter;
+    private DataChangeProviderInterface $dataChangeManager;
+    private ?DataConverterInterface $dataConverter;
 
     public function __construct(
         ElasticClient $elastic,
-        ConnectionSettings $connectionSettings,
-        DatabaseIntrospectorInterface $databaseIntrospector = null,
+        DataChangeProviderInterface $dataChangeManager,
         DataConverterInterface $dataConverter = null
     ) {
         $this->elastic = $elastic;
-        $this->pdo = (new PdoFactory())->create($connectionSettings);
-        $this->databaseIntrospector = $databaseIntrospector
-            ?? (new DatabaseInstrospectorFactory())->create($connectionSettings);
-        $this->dataConverter = $dataConverter
-            ?? (new DataConverterFactory())->create($connectionSettings->getDriverName());
+        $this->dataChangeManager = $dataChangeManager;
+        $this->dataConverter = $dataConverter;
     }
 
     public function synchronizeIndex(MappingInterface $mapping): void
     {
-        $databaseName = $mapping->getDatabaseName();
-        $indexName = $mapping->getIndexName();
-
-        $processedDataChangesIds = [];
+        $processedDataChanges = [];
         $elasticOperations = [];
 
-        foreach ($this->queryDataChanges($databaseName, $indexName) as $dataChange) {
-            $docOperations = $this->computeDocumentSyncOperations(
-                $databaseName,
-                $dataChange,
-                $mapping->getBasicFieldsMappings(),
-                $mapping->getComputedFieldsMappings()
-            );
+        foreach ($this->dataChangeManager->fetchDataChanges($mapping) as $dataChange) {
+            $docOperations = $this->computeDocumentSyncOperations($mapping, $dataChange);
             $elasticOperations = [...$elasticOperations, ...$docOperations];
-            $processedDataChangesIds[] = $dataChange->getId();
+
+            $processedDataChanges[] = $dataChange;
         }
 
-        if ($processedDataChangesIds) {
+        if ($processedDataChanges) {
             $this->elastic->bulk(['body' => $elasticOperations]);
-            $this->clearProcessedDataChanges($databaseName, $processedDataChangesIds);
+
+            foreach ($processedDataChanges as $dataChange) {
+                $this->dataChangeManager->markDataChangeAsProcessed($dataChange);
+            }
         }
     }
 
     /**
-     * @param BasicFieldMappingInterface[] $basicFieldsMappings
-     * @param ComputedFieldMappingInterface[] $computedFieldsMappings
      * @return mixed[][]
      */
-    private function computeDocumentSyncOperations(
-        string $databaseName,
-        DataChange $dataChange,
-        array $basicFieldsMappings,
-        array $computedFieldsMappings
-    ): array {
-        $tableName = $dataChange->getObjectType();
-        $primaryKeyValue = $dataChange->getObjectId();
-        $indexName = $dataChange->getIndexName();
+    private function computeDocumentSyncOperations(MappingInterface $mapping, DataChange $dataChange): array
+    {
+        $indexName = $mapping->getIndexName();
+        $documentData = $mapping->fetchDocumentData($dataChange->getObjectId());
+        $primaryKeyValue = $documentData[$mapping->getIdentifierFieldName()];
 
-        $rowData = $this->computeRowData(
-            $databaseName,
-            $tableName,
-            $primaryKeyValue,
-            $basicFieldsMappings,
-            $computedFieldsMappings
-        );
+        if ($this->dataConverter !== null) {
+            foreach ($documentData as $columnName => &$value) {
+                $field = $this->findField($mapping->getIndexFields(), $columnName);
+                if ($field === null) {
+                    throw new \InvalidArgumentException("TODO");
+                }
+                $value = $this->dataConverter->convertValue($field->getType(), $value);
+            }
+            unset($value);
+        }
 
-        $rowExists = $rowData !== null;
+        $rowExists = $documentData !== null;
         $documentExists = $this->elastic->exists(['index' => $indexName, 'id' => $primaryKeyValue]);
 
         $operations = [];
@@ -92,10 +75,10 @@ final class IndexSynchronizer implements IndexSynchronizerInterface
         if ($rowExists) {
             if ($documentExists) {
                 $operations[] = ['update' => $operationIndexAndId];
-                $operations[] = ['doc' => $rowData];
+                $operations[] = ['doc' => $documentData];
             } else {
                 $operations[] = ['index' => $operationIndexAndId];
-                $operations[] = $rowData;
+                $operations[] = $documentData;
             }
         } elseif ($documentExists) {
             $operations[] = ['delete' => $operationIndexAndId];
@@ -105,111 +88,15 @@ final class IndexSynchronizer implements IndexSynchronizerInterface
     }
 
     /**
-     * @return iterable|DataChange[]
+     * @param IndexField[] $fields
      */
-    private function queryDataChanges(string $databaseName, string $indexName): iterable
+    private function findField(array $fields, string $columnName): ?IndexField
     {
-        $statement = $this->pdo->prepare(<<<SQL
-            SELECT "id", "object_type" AS objectType, "object_id" AS objectId 
-            FROM "{$databaseName}"."data_change" 
-            WHERE "index" = ?
-            ORDER BY "object_type", "object_id"
-        SQL);
-
-        $statement->setFetchMode(\PDO::FETCH_CLASS, DataChange::class);
-        $statement->execute([$indexName]);
-
-        return $statement;
-    }
-
-    /**
-     * @param string[] $columnsNames
-     * @return mixed[]|null
-     */
-    private function queryTableRowData(
-        string $databaseName,
-        string $tableName,
-        int $primaryKeyValue,
-        array $columnsNames
-    ): ?array {
-        $columnsNamesSql = implode(',', array_map(fn($columnName) => '"' . $columnName . '"', $columnsNames));
-
-        $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName($databaseName, $tableName);
-
-        $sql = sprintf(
-            "SELECT {$columnsNamesSql} FROM \"%s\".\"%s\" WHERE \"%s\" = ?",
-            $databaseName,
-            $tableName,
-            $primaryKeyName
-        );
-
-        $statement = $this->pdo->prepare($sql);
-        $statement->execute([$primaryKeyValue]);
-
-        return $statement->fetch(\PDO::FETCH_ASSOC) ?: null;
-    }
-
-    /**
-     * @param BasicFieldMappingInterface[] $basicFieldsMappings
-     * @param ComputedFieldMappingInterface[] $computedFieldsMappings
-     * @return mixed[]
-     */
-    private function computeRowData(
-        string $databaseName,
-        string $tableName,
-        int $primaryKeyValue,
-        array $basicFieldsMappings,
-        array $computedFieldsMappings
-    ): array {
-        $columnsNames = $this->computeBasicMappedColumnsNames($basicFieldsMappings);
-        $columnsTypes = $this->databaseIntrospector->fetchColumnsTypes($databaseName, $tableName);
-
-        $rowData = $this->queryTableRowData($databaseName, $tableName, $primaryKeyValue, $columnsNames);
-
-        foreach ($rowData as $columnName => &$value) {
-            $value = $this->dataConverter->convertValue($columnsTypes[$columnName], $value);
+        foreach ($fields as $field) {
+            if ($field->getName() === $columnName) {
+                return $field;
+            }
         }
-        unset($value);
-
-        foreach ($computedFieldsMappings as $computedFieldMapping) {
-            $computedValue = $this->queryComputedFieldValue($computedFieldMapping, $primaryKeyValue);
-
-            $rowData[$computedFieldMapping->getIndexFieldName()] = $computedValue;
-        }
-
-        return $rowData;
-    }
-
-    private function queryComputedFieldValue(
-        ComputedFieldMappingInterface $computedFieldMapping,
-        int $primaryKeyValue
-    ) {
-        $statement = $this->pdo->prepare($computedFieldMapping->getValueQuery());
-        $statement->execute([':id' => $primaryKeyValue]);
-
-        return $statement->fetchColumn(0);
-    }
-
-    /**
-     * @param BasicFieldMappingInterface[] $basicFieldsMappings
-     * @return string[]
-     */
-    private function computeBasicMappedColumnsNames(array $basicFieldsMappings): array
-    {
-        return array_unique(array_map(
-            fn(BasicFieldMappingInterface $basicFieldMapping): string => $basicFieldMapping->getDatabaseColumnName(),
-            $basicFieldsMappings
-        ));
-    }
-
-    /**
-     * @param int[] $processedChangesIds
-     */
-    private function clearProcessedDataChanges(string $databaseName, array $processedChangesIds): void
-    {
-        $in = str_repeat('?,', count($processedChangesIds) - 1) . '?';
-        $this->pdo
-            ->prepare("DELETE FROM \"{$databaseName}\".\"data_change\" WHERE \"id\" IN ({$in})")
-            ->execute($processedChangesIds);
+        return null;
     }
 }

@@ -3,10 +3,10 @@
 namespace Jeto\Sqlastic\Database\Trigger;
 
 use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\Introspection\DatabaseInstrospectorFactory;
-use Jeto\Sqlastic\Database\Introspection\DatabaseIntrospectorInterface;
+use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
+use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
 use Jeto\Sqlastic\Database\PdoFactory;
-use Jeto\Sqlastic\Mapping\MappingInterface;
+use Jeto\Sqlastic\Mapping\Database\DatabaseMappingInterface;
 
 abstract class AbstractTriggerCreator implements TriggerCreatorInterface
 {
@@ -23,7 +23,7 @@ abstract class AbstractTriggerCreator implements TriggerCreatorInterface
     }
 
     /**
-     * @param MappingInterface[] $mappings
+     * @param DatabaseMappingInterface[] $mappings
      * @return string[][][]
      */
     protected function computeDataChangeInsertTuples(array $mappings): array
@@ -35,12 +35,10 @@ abstract class AbstractTriggerCreator implements TriggerCreatorInterface
             $tableName = $mapping->getTableName();
             $indexName = $mapping->getIndexName();
 
-            if ($mapping->getBasicFieldsMappings()) {
-                $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName($databaseName, $tableName);
+            $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName($databaseName, $tableName);
 
-                $tuple = "('{$indexName}', '{$tableName}', this.{$primaryKeyName})";
-                $tuples[$databaseName][$tableName][] = $tuple;
-            }
+            $tuple = "('{$indexName}', '{$tableName}', this.{$primaryKeyName})";
+            $tuples[$databaseName][$tableName][] = $tuple;
 
             foreach ($mapping->getComputedFieldsMappings() as $computedFieldMapping) {
                 $targetDatabaseName = $computedFieldMapping->getTargetDatabaseName();

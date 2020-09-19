@@ -1,14 +1,22 @@
+indices:
+    services:
+        fields:
+            csi:
+                type: string
+            type:
+                type: string
+            name:
+                type: string
+
+
 <?php
 
 use Elasticsearch\ClientBuilder;
 use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\Introspection\PgsqlDatabaseIntrospector;
-use Jeto\Sqlastic\Database\Trigger\MysqlTriggerCreator;
+use Jeto\Sqlastic\Database\DataConverter\PgsqlDataConverter;
 use Jeto\Sqlastic\Database\Trigger\PgsqlTriggerCreator;
-use Jeto\Sqlastic\Index\Builder\IndexBuilder;
-use Jeto\Sqlastic\Index\Populator\IndexPopulator;
-use Jeto\Sqlastic\Index\Synchronizer\IndexSynchronizer;
-use Jeto\Sqlastic\Mapping\BasicMapping;
+use Jeto\Sqlastic\Mapping\Database\FieldMapping\ComputedFieldMapping;
+
 
 require 'vendor/autoload.php';
 
@@ -26,38 +34,40 @@ $databaseName = 'public';
 $tableName = 'actor';
 $indexName = 'actor';
 
-$mapping = new class ($databaseName, $tableName, $indexName, new PgsqlDatabaseIntrospector(
-    $connectionSettings
-)) extends BasicMapping {
-    public function getComputedFieldsMappings(): array
-    {
-        return [];
-    }
-};
+$mapping = new \Jeto\Sqlastic\Mapping\Database\BasicDatabaseMapping($connectionSettings, $databaseName, $tableName, $indexName, [
+    new ComputedFieldMapping(
+        'employees',
+        'salaries',
+        'SELECT salary FROM employees.salaries s WHERE s.emp_no = :id ORDER BY s.to_date DESC LIMIT 1',
+        'this.emp_no',
+        'salary',
+        'integer'
+    )
+]);
 
-//$elastic->bulk(
-//    [
-//        'body' =>
-//            [
-//                [
-//                    'index' =>
-//                        [
-//                            '_index' => 'actor',
-//                            '_id' => 2,
-//                        ],
-//                ],
-//                [
-//                    'last_update' => strtotime('2006-02-15 04:34:33'),
-//                    'first_name' => 'NICK',
-//                    'last_name' => 'WAHLBERG',
-//                ],
-//            ],
-//    ]
-//);
-//die;
+$dataChangeManager = new DatabaseDataChangeManager($connectionSettings, $databaseName);
 
-//$mappingConfiguration = new MappingConfiguration([$mapping]);
+(new PgsqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping]);
+die;
 
-//(new IndexBuilder($elastic))->buildIndex($mapping);
-//(new PgsqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping], true);
-(new IndexPopulator($elastic, $connectionSettings))->populateIndex($mapping);
+//(new IndexBuilder2($elastic))->buildIndex($mapping);
+
+$dataConverter = new PgsqlDataConverter();
+
+(new IndexPopulator($elastic, $dataConverter))->populateIndex($mapping);
+(new IndexSynchronizer($elastic, $dataChangeManager, $dataConverter))->synchronizeIndex($mapping);
+
+//$mapping = new class ($databaseName, $tableName, $indexName, new PgsqlDatabaseIntrospector(
+//    $connectionSettings
+//)) extends BasicMapping {
+//    public function getComputedFieldsMappings(): array
+//    {
+//        return [];
+//    }
+//};
+//
+////$mappingConfiguration = new MappingConfiguration([$mapping]);
+//
+////(new IndexBuilder($elastic))->buildIndex($mapping);
+////(new PgsqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping], true);
+//(new IndexPopulator($elastic, $connectionSettings))->populateIndex($mapping);

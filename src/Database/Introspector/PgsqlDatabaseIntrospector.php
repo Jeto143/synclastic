@@ -1,8 +1,8 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspection;
+namespace Jeto\Sqlastic\Database\Introspector;
 
-class PgsqlDatabaseIntrospector extends AbstractDatabaseIntrospector
+final class PgsqlDatabaseIntrospector extends AbstractDatabaseIntrospector
 {
     public function fetchPrimaryKeyName(string $databaseName, string $tableName): string
     {

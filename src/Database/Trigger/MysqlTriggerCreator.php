@@ -2,10 +2,6 @@
 
 namespace Jeto\Sqlastic\Database\Trigger;
 
-use Jeto\Sqlastic\Database\Introspection\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Database\Introspection\MysqlDatabaseIntrospector;
-use Jeto\Sqlastic\Mapping\MappingInterface;
-
 final class MysqlTriggerCreator extends AbstractTriggerCreator
 {
     /** @inheritDoc */

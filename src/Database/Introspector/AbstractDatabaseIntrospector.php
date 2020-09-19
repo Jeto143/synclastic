@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspection;
+namespace Jeto\Sqlastic\Database\Introspector;
 
 use Jeto\Sqlastic\Database\ConnectionSettings;
 use Jeto\Sqlastic\Database\PdoFactory;

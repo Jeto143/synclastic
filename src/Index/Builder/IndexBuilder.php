@@ -3,12 +3,8 @@
 namespace Jeto\Sqlastic\Index\Builder;
 
 use Elasticsearch\Client as ElasticClient;
-use Jeto\Sqlastic\Database\Introspection\DatabaseInstrospectorFactory;
-use Jeto\Sqlastic\Database\Introspection\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Mapping\FieldMapping\BasicFieldMappingInterface;
-use Jeto\Sqlastic\Mapping\FieldMapping\FieldMappingInterface;
+use Jeto\Sqlastic\Mapping\IndexField;
 use Jeto\Sqlastic\Mapping\MappingInterface;
-use Jeto\Sqlastic\Mapping\Configuration\MappingConfigurationInterface;
 
 final class IndexBuilder implements IndexBuilderInterface
 {
@@ -24,7 +20,10 @@ final class IndexBuilder implements IndexBuilderInterface
         $indexName = $mapping->getIndexName();
 
         $existingIndex = $this->fetchIndex($indexName);
-        $indexTargetFieldsTypes = $this->computeIndexTargetFieldsTypes($mapping);
+
+        $indexTargetFieldsTypes = array_map(static function (IndexField $field) {
+            return ['type' => $field->getType()];
+        }, $mapping->getIndexFields());
 
         if ($existingIndex !== null) {
             if ($this->indexRequiresReindexing($existingIndex, $indexTargetFieldsTypes)) {
@@ -49,25 +48,6 @@ final class IndexBuilder implements IndexBuilderInterface
         $indices = $this->elastic->indices()->get(['index' => $indexName]);
 
         return reset($indices) ?: null;
-    }
-
-    /**
-     * @return string[]
-     */
-    private function computeIndexTargetFieldsTypes(MappingInterface $mapping): array
-    {
-        /** @var FieldMappingInterface[] $fieldsMappings */
-        $fieldsMappings = array_merge($mapping->getBasicFieldsMappings(), $mapping->getComputedFieldsMappings());
-
-        $indexFieldsTypes = [];
-
-        foreach ($fieldsMappings as $basicFieldMapping) {
-            $indexFieldsTypes[$basicFieldMapping->getIndexFieldName()] = [
-                'type' => $basicFieldMapping->getIndexFieldType()
-            ];
-        }
-
-        return $indexFieldsTypes;
     }
 
     private function createIndex(string $indexName, array $fieldsDefinitions, array $settings = []): string

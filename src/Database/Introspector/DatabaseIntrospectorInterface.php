@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspection;
+namespace Jeto\Sqlastic\Database\Introspector;
 
 interface DatabaseIntrospectorInterface
 {

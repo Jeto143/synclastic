@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspection;
+namespace Jeto\Sqlastic\Database\Introspector;
 
 final class MysqlDatabaseIntrospector extends AbstractDatabaseIntrospector
 {

@@ -2,10 +2,6 @@
 
 namespace Jeto\Sqlastic\Database\Trigger;
 
-use Jeto\Sqlastic\Database\Introspection\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Database\Introspection\MysqlDatabaseIntrospector;
-use Jeto\Sqlastic\Mapping\MappingInterface;
-
 final class PgsqlTriggerCreator extends AbstractTriggerCreator
 {
      /** @inheritDoc */
@@ -62,6 +58,15 @@ final class PgsqlTriggerCreator extends AbstractTriggerCreator
             $this->pdo->exec("DROP TABLE IF EXISTS \"{$databaseName}\".\"data_change\"");
         }
 
+        echo <<<SQL
+            CREATE TABLE IF NOT EXISTS "{$databaseName}"."data_change" (
+                "id" SERIAL PRIMARY KEY,
+                "index" VARCHAR(255) NOT NULL,
+                "object_type" VARCHAR(255) NOT NULL,
+                "object_id" INT NOT NULL,
+                CONSTRAINT object_unique UNIQUE ("object_type", "object_id") 
+            )
+        SQL;
         $this->pdo->exec(<<<SQL
             CREATE TABLE IF NOT EXISTS "{$databaseName}"."data_change" (
                 "id" SERIAL PRIMARY KEY,

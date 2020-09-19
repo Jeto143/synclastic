@@ -2,15 +2,19 @@
 
 namespace Jeto\Sqlastic\Database\Trigger;
 
-final class TriggerCreatorFactory implements TriggerCreatorFactoryInterface
+use Jeto\Sqlastic\Database\ConnectionSettings;
+
+final class TriggerCreatorFactory
 {
-    public function create(\PDO $pdo): TriggerCreatorInterface
+    public function create(ConnectionSettings $connectionSettings): TriggerCreatorInterface
     {
-        $driverName = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $driverName = $connectionSettings->getDriverName();
 
         switch ($driverName) {
             case 'mysql':
-                return new MysqlTriggerCreator($pdo);
+                return new MysqlTriggerCreator($connectionSettings);
+            case 'pgsql':
+                return new PgsqlTriggerCreator($connectionSettings);
         }
 
         throw new \InvalidArgumentException("Unhandled PDO driver: {$driverName}.");

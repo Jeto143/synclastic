@@ -22,7 +22,7 @@ class DatabaseDataChangeProvider implements DataChangeProviderInterface
         $this->databaseName = $databaseName;
     }
 
-    public function fetchDataChanges(MappingInterface $mapping): iterable
+    public function fetchDataChanges(MappingInterface $mapping): array
     {
         $statement = $this->pdo->prepare(<<<SQL
             SELECT "id", "object_type" AS "objectType", "object_id" AS "objectId"
@@ -31,10 +31,9 @@ class DatabaseDataChangeProvider implements DataChangeProviderInterface
             ORDER BY "object_type", "object_id"
         SQL);
 
-        $statement->setFetchMode(\PDO::FETCH_CLASS, DataChange::class);
         $statement->execute([$mapping->getIndexName()]);
 
-        return $statement;
+        return $statement->fetchAll(\PDO::FETCH_CLASS, DataChange::class);
     }
 
     public function markDataChangeAsProcessed(DataChange $dataChange): void

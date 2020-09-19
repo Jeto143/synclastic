@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\DataConverter;
+namespace Jeto\Sqlastic\Mapping;
 
 interface DataConverterInterface
 {

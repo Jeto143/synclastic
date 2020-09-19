@@ -41,6 +41,9 @@
  * TODO: have interactive bash commands to execute tasks / import yaml config file
  * TODO: check all classes for final keyword (when necessary)
  * https://matthiasnoback.nl/2020/09/simple-recipe-for-framework-decoupling/
+ * synclastic? syncastic? elastisync?
+ * TODO: find a more accurate type hinting for "mixed" identifiers (int|string|\DateTime?)
+ *
  *
  * TODO: CRON sync
  * TODO: volumes section in docker-compose for ES (indices aren't saved between sessions)
@@ -55,6 +58,7 @@ use Jeto\Sqlastic\Database\Trigger\MysqlTriggerCreator;
 use Jeto\Sqlastic\Index\Builder\IndexBuilder;
 use Jeto\Sqlastic\Index\Populator\IndexPopulator;
 use Jeto\Sqlastic\Index\Synchronizer\IndexSynchronizer;
+use Jeto\Sqlastic\Index\Updater\IndexUpdater;
 use Jeto\Sqlastic\Mapping\Database\BasicDatabaseMapping;
 use Jeto\Sqlastic\Mapping\Database\CustomDatabaseMapping;
 use Jeto\Sqlastic\Mapping\Database\DatabaseDataChangeProvider;
@@ -118,7 +122,7 @@ $mapping = new class ($ldap, $connectionSettings, $databaseName, $tableName, $in
 
     public function getIndexFields(): array
     {
-        return array_merge(parent::getIndexFields(), [new IndexField('telephoneNumber', 'text')]);
+        return array_merge(parent::getIndexFields(), [new IndexField('telephoneNumber', 'text',)]);
     }
 
     public function fetchDocumentData($identifier): ?array
@@ -152,16 +156,20 @@ $mapping = new class ($ldap, $connectionSettings, $databaseName, $tableName, $in
     }
 };
 
-$dataChangeProvider = new DatabaseDataChangeProvider($connectionSettings, $databaseName);
-
-(new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping]);
-
-(new IndexBuilder($elastic))->buildIndex($mapping);
-
 $dataConverter = null;//new MysqlDataConverter();
 
-//(new IndexPopulator($elastic, $dataConverter))->populateIndex($mapping);
-(new IndexSynchronizer($elastic, $dataChangeProvider, $dataConverter))->synchronizeIndex($mapping);
+$indexUpdater = new IndexUpdater($elastic, $dataConverter);
+$dataChangeProvider = new DatabaseDataChangeProvider($connectionSettings, $databaseName);
+
+//(new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping]);
+
+//(new IndexBuilder($elastic))->buildIndex($mapping);
+
+(new IndexPopulator($elastic, $indexUpdater))->populateIndex($mapping);
+
+//$indexUpdater->updateDocuments($mapping, [10002]);
+
+//(new IndexSynchronizer($indexUpdater, $dataChangeProvider))->synchronizeIndex($mapping);
 
 
 //$mapping = new class ($databaseName, $tableName, $indexName, new MysqlDatabaseIntrospector($connectionSettings)) extends BasicMapping {

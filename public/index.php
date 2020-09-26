@@ -41,9 +41,10 @@
  * TODO: have interactive bash commands to execute tasks / import yaml config file
  * TODO: check all classes for final keyword (when necessary)
  * https://matthiasnoback.nl/2020/09/simple-recipe-for-framework-decoupling/
- * synclastic? syncastic? elastisync?
+ * synclastic? syncastic? elastisync? maplastic
  * TODO: find a more accurate type hinting for "mixed" identifiers (int|string|\DateTime?)
- *
+ * TODO: register yaml mapping type parsers, one for each mapping type
+ * TODO: populator -> filler
  *
  * TODO: CRON sync
  * TODO: volumes section in docker-compose for ES (indices aren't saved between sessions)
@@ -53,17 +54,20 @@
 
 use Elasticsearch\ClientBuilder;
 use Jeto\Sqlastic\Database\ConnectionSettings;
+use Jeto\Sqlastic\Database\Fetcher\BasicDataFetcher;
+use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Database\Trigger\MysqlTriggerCreator;
-use Jeto\Sqlastic\Index\Builder\IndexBuilder;
-use Jeto\Sqlastic\Index\Populator\IndexPopulator;
-use Jeto\Sqlastic\Index\Synchronizer\IndexSynchronizer;
-use Jeto\Sqlastic\Index\Updater\IndexUpdater;
-use Jeto\Sqlastic\Mapping\Database\BasicDatabaseMapping;
-use Jeto\Sqlastic\Mapping\Database\CustomDatabaseMapping;
-use Jeto\Sqlastic\Mapping\Database\DatabaseDataChangeProvider;
+use Jeto\Sqlastic\Index\Builder\Builder;
+use Jeto\Sqlastic\Index\Definition\DefinitionInterface;
+use Jeto\Sqlastic\Index\Refiller\Refiller;
+use Jeto\Sqlastic\Index\Synchronizer\Synchronizer;
+use Jeto\Sqlastic\Index\Updater\Updater;
+use Jeto\Sqlastic\Mapping\Database\BasicIndexDefinitionFactory;
+use Jeto\Sqlastic\Mapping\Database\BasicMappingFactory;
+use Jeto\Sqlastic\Mapping\Database\DataChangeFetcher;
 use Jeto\Sqlastic\Mapping\Database\FieldMapping\ComputedFieldMapping;
-use Jeto\Sqlastic\Mapping\IndexField;
+use Jeto\Sqlastic\Mapping\Database\Mapping;
+use Jeto\Sqlastic\Mapping\Database\MappingInterface;
 
 require 'vendor/autoload.php';
 
@@ -78,6 +82,7 @@ ldap_set_option($ldap, LDAP_OPT_PROTOCOL_VERSION, 3);
 ldap_bind($ldap, 'cn=admin,dc=example,dc=org', 'adminpassword');
 
 $connectionSettings = new ConnectionSettings('mysql', 'mysql', 'root', 'asdf007');
+$databaseIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
 
 $elastic = ClientBuilder::create()->setHosts(['http://elasticsearch:9200'])->build();
 
@@ -85,7 +90,10 @@ $databaseName = 'employees';
 $tableName = 'employees';
 $indexName = 'employees';
 
-$mapping = new class ($ldap, $connectionSettings, $databaseName, $tableName, $indexName, [], [
+$mapping = (new BasicMappingFactory($databaseIntrospector))->create($databaseName, $tableName, $indexName);
+$indexDefinition = (new BasicIndexDefinitionFactory($databaseIntrospector))->create($indexName, $mapping);
+
+$mapping = new Mapping($databaseName, $tableName, $mapping->getBasicFieldsMappings(), [
     new ComputedFieldMapping(
         'employees',
         'salaries',
@@ -94,56 +102,32 @@ $mapping = new class ($ldap, $connectionSettings, $databaseName, $tableName, $in
         'salary',
         'integer'
     )
-]) extends CustomDatabaseMapping {
+]);
+
+$dataConverter = null;//new MysqlDataConverter();
+$builder = new Builder($elastic);
+$dataChangeFetcher = new DataChangeFetcher($connectionSettings, $databaseName);
+
+$fetcher = new class($ldap, $mapping, $connectionSettings) extends BasicDataFetcher {
+    /** @var resource */
     private $ldap;
 
     public function __construct(
         $ldap,
+        MappingInterface $databaseMapping,
         ConnectionSettings $connectionSettings,
-        string $databaseName,
-        string $tableName,
-        string $indexName,
-        array $basicFieldsMappings = [],
-        array $computedFieldsMappings = [],
-        DatabaseIntrospectorInterface $databaseIntrospector = null
+        ?DatabaseIntrospectorInterface $databaseIntrospector = null
     ) {
-        parent::__construct(
-            $connectionSettings,
-            $databaseName,
-            $tableName,
-            $indexName,
-            $basicFieldsMappings,
-            $computedFieldsMappings,
-            $databaseIntrospector
-        );
-        
+        parent::__construct($databaseMapping, $connectionSettings, $databaseIntrospector);
         $this->ldap = $ldap;
     }
 
-    public function getIndexFields(): array
+    public function fetchSourceData(DefinitionInterface $indexDefinition, ?array $identifiers = null): iterable
     {
-        return array_merge(parent::getIndexFields(), [new IndexField('telephoneNumber', 'text',)]);
-    }
-
-    public function fetchDocumentData($identifier): ?array
-    {
-        $documentData = parent::fetchDocumentData($identifier);
-
-        if ($documentData !== null) {
-            $documentData['telephoneNumber'] = $this->fetchTelephoneNumber($identifier);
-        }
-
-        return $documentData;
-    }
-    
-    public function fetchIndexData(): iterable
-    {
-        foreach (parent::fetchIndexData() as $documentData) {
-            $identifier = (int)$documentData['emp_no'];
-
+        foreach (parent::fetchSourceData($indexDefinition, $identifiers) as $identifier => $documentData) {
             $documentData['telephoneNumber'] = $this->fetchTelephoneNumber($identifier);
 
-            yield $documentData;
+            yield $identifier => $documentData;
         }
     }
 
@@ -156,48 +140,20 @@ $mapping = new class ($ldap, $connectionSettings, $databaseName, $tableName, $in
     }
 };
 
-$dataConverter = null;//new MysqlDataConverter();
-
-$indexUpdater = new IndexUpdater($elastic, $dataConverter);
-$dataChangeProvider = new DatabaseDataChangeProvider($connectionSettings, $databaseName);
+$updater = new Updater($elastic, $dataConverter);
+$synchronizer = new Synchronizer($dataChangeFetcher, $fetcher, $updater);
+$filler = new Refiller($elastic, $fetcher, $updater);
 
 //(new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping]);
 
 //(new IndexBuilder($elastic))->buildIndex($mapping);
 
-(new IndexPopulator($elastic, $indexUpdater))->populateIndex($mapping);
+//$filler->refillIndex($indexDefinition);
+
+//(new Filler($elastic, $fetcher, $updater))->fillIndex($mapping);
+
+$synchronizer->synchronizeDocumentsByIds($indexDefinition, [10002]);
 
 //$indexUpdater->updateDocuments($mapping, [10002]);
 
 //(new IndexSynchronizer($indexUpdater, $dataChangeProvider))->synchronizeIndex($mapping);
-
-
-//$mapping = new class ($databaseName, $tableName, $indexName, new MysqlDatabaseIntrospector($connectionSettings)) extends BasicMapping {
-//    public function getComputedFieldsMappings(): array
-//    {
-//        return [
-//            new ComputedFieldMapping(
-//                'employees',
-//                'salaries',
-//                'SELECT salary FROM employees.salaries s WHERE s.emp_no = :id ORDER BY s.to_date DESC LIMIT 1',
-//                'this.emp_no',
-//                'salary',
-//                'integer'
-//            )
-//        ];
-//    }
-//};
-//
-////$mappingConfiguration = new MappingConfiguration([$mapping]);
-//
-////(new IndexBuilder($elastic))->buildIndex($mapping);
-////(new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping], true);
-//(new IndexSynchronizer($elastic, $connectionSettings))->clearAndSynchronizeIndex($mapping);
-////(new IndexSynchronizer($elastic, $pdo))->synchronizeIndex($mapping);
-//
-////$searcher = new Searcher($elastic);
-////
-////$hits = $searcher->search($tableName, 'Touati');
-////echo '<pre>';
-////var_dump($hits);
-////echo '</pre>';

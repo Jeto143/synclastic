@@ -14,7 +14,7 @@ final class MysqlDatabaseIntrospector extends AbstractDatabaseIntrospector
     public function fetchColumnsTypes(string $databaseName, string $tableName): array
     {
         $statement = $this->pdo->prepare(<<<SQL
-            SELECT * 
+            SELECT COLUMN_NAME, DATA_TYPE
             FROM `INFORMATION_SCHEMA`.`COLUMNS` 
             WHERE `TABLE_SCHEMA` = ? AND `TABLE_NAME` = ?
         SQL);

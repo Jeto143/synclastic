@@ -1,12 +1,12 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Trigger;
+namespace Jeto\Sqlastic\Database\TriggerCreator;
 
 use Jeto\Sqlastic\Database\ConnectionSettings;
 use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
 use Jeto\Sqlastic\Database\PdoFactory;
-use Jeto\Sqlastic\Mapping\Database\DatabaseMappingInterface;
+use Jeto\Sqlastic\Mapping\Database\MappingInterface;
 
 abstract class AbstractTriggerCreator implements TriggerCreatorInterface
 {
@@ -23,7 +23,7 @@ abstract class AbstractTriggerCreator implements TriggerCreatorInterface
     }
 
     /**
-     * @param DatabaseMappingInterface[] $mappings
+     * @param MappingInterface[] $mappings
      * @return string[][][]
      */
     protected function computeDataChangeInsertTuples(array $mappings): array

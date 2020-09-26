@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Trigger;
+namespace Jeto\Sqlastic\Database\TriggerCreator;
 
 final class MysqlTriggerCreator extends AbstractTriggerCreator
 {

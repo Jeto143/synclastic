@@ -2,7 +2,7 @@
 
 namespace Jeto\Sqlastic\Mapping\Configuration;
 
-use Jeto\Sqlastic\Mapping\MappingInterface;
+use Jeto\Sqlastic\Mapping\IndexDefinitionInterface;
 
 interface MappingConfigurationInterface
 {
@@ -11,7 +11,7 @@ interface MappingConfigurationInterface
     public function getTriggerFormat(): string;
 
     /**
-     * @return MappingInterface[]
+     * @return IndexDefinitionInterface[]
      */
     public function getMappings(): array;
 }

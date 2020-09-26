@@ -25,12 +25,14 @@ services:
       - elk
 
   web:
+    container_name: sqlastic_web
     build: .
     ports:
       - 80:80
     volumes:
       - "./public:/var/www/html"
       - "./src:/usr/local/lib/php/src"
+      - "./bin/console:/usr/local/bin/sqlastic-console"
     networks:
       - elk
 

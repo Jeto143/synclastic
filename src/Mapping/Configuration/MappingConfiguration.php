@@ -2,7 +2,7 @@
 
 namespace Jeto\Sqlastic\Mapping\Configuration;
 
-use Jeto\Sqlastic\Mapping\MappingInterface;
+use Jeto\Sqlastic\Mapping\IndexDefinitionInterface;
 
 final class MappingConfiguration implements MappingConfigurationInterface
 {
@@ -10,13 +10,13 @@ final class MappingConfiguration implements MappingConfigurationInterface
 
     private string $triggerFormat;
 
-    /** @var MappingInterface[] */
+    /** @var IndexDefinitionInterface[] */
     private array $mappings;
 
     /**
-     * @param string $dataChangeTableName
-     * @param string $triggerFormat
-     * @param MappingInterface[] $mappings
+     * @param string                     $dataChangeTableName
+     * @param string                     $triggerFormat
+     * @param IndexDefinitionInterface[] $mappings
      */
     public function __construct(string $dataChangeTableName, string $triggerFormat, array $mappings)
     {

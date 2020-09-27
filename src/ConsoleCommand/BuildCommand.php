@@ -1,8 +1,8 @@
 <?php
 
-namespace Jeto\Sqlastic\ConsoleCommand;
+namespace Jeto\Synclastic\ConsoleCommand;
 
-use Jeto\Sqlastic\ServiceBuilder\ServiceBuilder;
+use Jeto\Synclastic\ServiceBuilder\ServiceBuilder;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\TriggerCreator;
+namespace Jeto\Synclastic\Database\TriggerCreator;
 
 final class PgsqlTriggerCreator extends AbstractTriggerCreator
 {
@@ -12,8 +12,8 @@ final class PgsqlTriggerCreator extends AbstractTriggerCreator
 
             foreach ($databaseTuples as $tableName => $tuples) {
                 foreach (['INSERT' => 'NEW', 'UPDATE' => 'NEW', 'DELETE' => 'OLD'] as $action => $tableAlias) {
-                    $triggerName = "TR_sqlastic_{$tableName}_{$action}";
-                    $procedureName = "sqlastic_on_{$tableName}_{$action}";
+                    $triggerName = "TR_Synclastic_{$tableName}_{$action}";
+                    $procedureName = "Synclastic_on_{$tableName}_{$action}";
 
                     $tuplesSql = implode(",\n\t\t", $tuples);
                     $tuplesSql = preg_replace('/\bthis(?=\.)/', $tableAlias, $tuplesSql);

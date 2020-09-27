@@ -1,8 +1,8 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\DataConverter;
+namespace Jeto\Synclastic\Database\DataConverter;
 
-use Jeto\Sqlastic\Database\DataConverter\DataConverterInterface;
+use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
 
 class PgsqlDataConverter implements DataConverterInterface
 {

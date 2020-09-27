@@ -1,12 +1,12 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\TriggerCreator;
+namespace Jeto\Synclastic\Database\TriggerCreator;
 
-use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
-use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Database\Mapping\MappingInterface;
-use Jeto\Sqlastic\Database\PdoFactory;
+use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
+use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
+use Jeto\Synclastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\PdoFactory;
 
 abstract class AbstractTriggerCreator implements TriggerCreatorInterface
 {

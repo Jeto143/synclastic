@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Mapping;
+namespace Jeto\Synclastic\Database\Mapping;
 
 final class BasicFieldMapping implements BasicFieldMappingInterface
 {

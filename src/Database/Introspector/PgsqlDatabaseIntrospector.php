@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspector;
+namespace Jeto\Synclastic\Database\Introspector;
 
 final class PgsqlDatabaseIntrospector extends AbstractDatabaseIntrospector
 {

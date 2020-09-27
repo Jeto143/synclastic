@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Search;
+namespace Jeto\Synclastic\Search;
 
 use Elasticsearch\Client as ElasticClient;
 

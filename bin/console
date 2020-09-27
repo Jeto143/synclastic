@@ -5,9 +5,9 @@ namespace App\Command;
 
 require 'vendor/autoload.php';
 
-use Jeto\Sqlastic\ConsoleCommand\BuildCommand;
-use Jeto\Sqlastic\ConsoleCommand\RefillCommand;
-use Jeto\Sqlastic\ConsoleCommand\SynchronizeCommand;
+use Jeto\Synclastic\ConsoleCommand\BuildCommand;
+use Jeto\Synclastic\ConsoleCommand\RefillCommand;
+use Jeto\Synclastic\ConsoleCommand\SynchronizeCommand;
 use Symfony\Component\Console\Application;
 
 $application = new Application();

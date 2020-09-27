@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Database;
+namespace Jeto\Synclastic\Database;
 
 final class PdoFactory
 {

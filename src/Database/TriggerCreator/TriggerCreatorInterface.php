@@ -1,8 +1,8 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\TriggerCreator;
+namespace Jeto\Synclastic\Database\TriggerCreator;
 
-use Jeto\Sqlastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\Mapping\MappingInterface;
 
 interface TriggerCreatorInterface
 {

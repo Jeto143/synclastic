@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Index\Operation;
+namespace Jeto\Synclastic\Index\Operation;
 
 final class Operation
 {

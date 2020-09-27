@@ -1,8 +1,8 @@
 <?php
 
-namespace Jeto\Sqlastic\ConsoleCommand;
+namespace Jeto\Synclastic\ConsoleCommand;
 
-use Jeto\Sqlastic\Index\Operation\Operation;
+use Jeto\Synclastic\Index\Operation\Operation;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;

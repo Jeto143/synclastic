@@ -49,26 +49,26 @@
  * TODO: CRON sync
  * TODO: volumes section in docker-compose for ES (indices aren't saved between sessions)
  * Rather than fields being either basic or computed, have 2 distinct collections: (basic_)?fields and computed_fields
- * Replicastic? SQLastic
+ * Replicastic? Synclastic
  */
 
 use Elasticsearch\ClientBuilder;
-use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\DataConverter\DataConverterInterface;
-use Jeto\Sqlastic\Database\DataFetcher\BasicDataFetcher;
-use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
-use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
-use Jeto\Sqlastic\Index\Builder\Builder;
-use Jeto\Sqlastic\Index\Definition\DefinitionInterface;
-use Jeto\Sqlastic\Index\Refiller\Refiller;
-use Jeto\Sqlastic\Index\Synchronizer\Synchronizer;
-use Jeto\Sqlastic\Index\Updater\Updater;
-use Jeto\Sqlastic\Database\IndexDefinition\BasicIndexDefinitionFactory;
-use Jeto\Sqlastic\Database\Mapping\BasicMappingFactory;
-use Jeto\Sqlastic\Database\DataChangeFetcher\DataChangeFetcher;
-use Jeto\Sqlastic\Database\Mapping\ComputedFieldMapping;
-use Jeto\Sqlastic\Database\Mapping\Mapping;
-use Jeto\Sqlastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
+use Jeto\Synclastic\Database\DataFetcher\BasicDataFetcher;
+use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
+use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
+use Jeto\Synclastic\Index\Builder\Builder;
+use Jeto\Synclastic\Index\Definition\DefinitionInterface;
+use Jeto\Synclastic\Index\Refiller\Refiller;
+use Jeto\Synclastic\Index\Synchronizer\Synchronizer;
+use Jeto\Synclastic\Index\Updater\Updater;
+use Jeto\Synclastic\Database\IndexDefinition\BasicIndexDefinitionFactory;
+use Jeto\Synclastic\Database\Mapping\BasicMappingFactory;
+use Jeto\Synclastic\Database\DataChangeFetcher\DataChangeFetcher;
+use Jeto\Synclastic\Database\Mapping\ComputedFieldMapping;
+use Jeto\Synclastic\Database\Mapping\Mapping;
+use Jeto\Synclastic\Database\Mapping\MappingInterface;
 
 require 'vendor/autoload.php';
 
@@ -156,7 +156,7 @@ $filler = new Refiller($elastic, $fetcher, $updater);
 
 //(new IndexBuilder($elastic))->buildIndex($mapping);
 
-$filler->refillIndex($indexDefinition);
+//$filler->refillIndex($indexDefinition);
 
 //(new Filler($elastic, $fetcher, $updater))->fillIndex($mapping);
 

@@ -1,9 +1,9 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspector;
+namespace Jeto\Synclastic\Database\Introspector;
 
-use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\PdoFactory;
+use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\PdoFactory;
 
 abstract class AbstractDatabaseIntrospector implements DatabaseIntrospectorInterface
 {

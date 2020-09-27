@@ -1,8 +1,8 @@
 <?php
 
-namespace Jeto\Sqlastic\Database\Introspector;
+namespace Jeto\Synclastic\Database\Introspector;
 
-use Jeto\Sqlastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\ConnectionSettings;
 
 final class DatabaseInstrospectorFactory
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Mapping\Database\FieldMapping;
+namespace Jeto\Sqlastic\Database\Mapping;
 
 final class BasicFieldMapping implements BasicFieldMappingInterface
 {
@@ -16,6 +16,11 @@ final class BasicFieldMapping implements BasicFieldMappingInterface
     public function getDatabaseColumnName(): string
     {
         return $this->databaseColumnName;
+    }
+
+    public function getDatabaseColumnType(): string
+    {
+        return $this->databaseColumnType;
     }
 
     public function getIndexFieldName(): string

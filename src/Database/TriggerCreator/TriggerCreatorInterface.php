@@ -2,7 +2,7 @@
 
 namespace Jeto\Sqlastic\Database\TriggerCreator;
 
-use Jeto\Sqlastic\Mapping\Database\MappingInterface;
+use Jeto\Sqlastic\Database\Mapping\MappingInterface;
 
 interface TriggerCreatorInterface
 {

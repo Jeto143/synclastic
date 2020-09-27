@@ -54,7 +54,8 @@
 
 use Elasticsearch\ClientBuilder;
 use Jeto\Sqlastic\Database\ConnectionSettings;
-use Jeto\Sqlastic\Database\Fetcher\BasicDataFetcher;
+use Jeto\Sqlastic\Database\DataConverter\DataConverterInterface;
+use Jeto\Sqlastic\Database\DataFetcher\BasicDataFetcher;
 use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
 use Jeto\Sqlastic\Index\Builder\Builder;
@@ -62,12 +63,12 @@ use Jeto\Sqlastic\Index\Definition\DefinitionInterface;
 use Jeto\Sqlastic\Index\Refiller\Refiller;
 use Jeto\Sqlastic\Index\Synchronizer\Synchronizer;
 use Jeto\Sqlastic\Index\Updater\Updater;
-use Jeto\Sqlastic\Mapping\Database\BasicIndexDefinitionFactory;
-use Jeto\Sqlastic\Mapping\Database\BasicMappingFactory;
-use Jeto\Sqlastic\Mapping\Database\DataChangeFetcher;
-use Jeto\Sqlastic\Mapping\Database\FieldMapping\ComputedFieldMapping;
-use Jeto\Sqlastic\Mapping\Database\Mapping;
-use Jeto\Sqlastic\Mapping\Database\MappingInterface;
+use Jeto\Sqlastic\Database\IndexDefinition\BasicIndexDefinitionFactory;
+use Jeto\Sqlastic\Database\Mapping\BasicMappingFactory;
+use Jeto\Sqlastic\Database\DataChangeFetcher\DataChangeFetcher;
+use Jeto\Sqlastic\Database\Mapping\ComputedFieldMapping;
+use Jeto\Sqlastic\Database\Mapping\Mapping;
+use Jeto\Sqlastic\Database\Mapping\MappingInterface;
 
 require 'vendor/autoload.php';
 
@@ -108,7 +109,7 @@ $dataConverter = null;//new MysqlDataConverter();
 $builder = new Builder($elastic);
 $dataChangeFetcher = new DataChangeFetcher($connectionSettings, $databaseName);
 
-$fetcher = new class($ldap, $mapping, $connectionSettings) extends BasicDataFetcher {
+$fetcher = new class($ldap, $mapping, $connectionSettings, $dataConverter) extends BasicDataFetcher {
     /** @var resource */
     private $ldap;
 
@@ -116,18 +117,25 @@ $fetcher = new class($ldap, $mapping, $connectionSettings) extends BasicDataFetc
         $ldap,
         MappingInterface $databaseMapping,
         ConnectionSettings $connectionSettings,
+        ?DataConverterInterface $dataConverter = null,
         ?DatabaseIntrospectorInterface $databaseIntrospector = null
     ) {
-        parent::__construct($databaseMapping, $connectionSettings, $databaseIntrospector);
+        parent::__construct($databaseMapping, $connectionSettings, $dataConverter, $databaseIntrospector);
         $this->ldap = $ldap;
     }
 
     public function fetchSourceData(DefinitionInterface $indexDefinition, ?array $identifiers = null): iterable
     {
-        foreach (parent::fetchSourceData($indexDefinition, $identifiers) as $identifier => $documentData) {
-            $documentData['telephoneNumber'] = $this->fetchTelephoneNumber($identifier);
+        $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName(
+            $this->databaseMapping->getDatabaseName(),
+            $this->databaseMapping->getTableName()
+        );
 
-            yield $identifier => $documentData;
+        foreach (parent::fetchSourceData($indexDefinition, $identifiers) as $rowData) {
+            $identifier = $rowData[$primaryKeyName];
+            $rowData['telephoneNumber'] = $this->fetchTelephoneNumber($identifier);
+
+            yield $rowData;
         }
     }
 
@@ -140,7 +148,7 @@ $fetcher = new class($ldap, $mapping, $connectionSettings) extends BasicDataFetc
     }
 };
 
-$updater = new Updater($elastic, $dataConverter);
+$updater = new Updater($elastic);
 $synchronizer = new Synchronizer($dataChangeFetcher, $fetcher, $updater);
 $filler = new Refiller($elastic, $fetcher, $updater);
 
@@ -148,11 +156,11 @@ $filler = new Refiller($elastic, $fetcher, $updater);
 
 //(new IndexBuilder($elastic))->buildIndex($mapping);
 
-//$filler->refillIndex($indexDefinition);
+$filler->refillIndex($indexDefinition);
 
 //(new Filler($elastic, $fetcher, $updater))->fillIndex($mapping);
 
-$synchronizer->synchronizeDocumentsByIds($indexDefinition, [10002]);
+//$synchronizer->synchronizeDocumentsByIds($indexDefinition, [10002]);
 
 //$indexUpdater->updateDocuments($mapping, [10002]);
 

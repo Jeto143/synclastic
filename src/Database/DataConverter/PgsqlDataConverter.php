@@ -2,7 +2,7 @@
 
 namespace Jeto\Sqlastic\Database\DataConverter;
 
-use Jeto\Sqlastic\DataConverter\DataConverterInterface;
+use Jeto\Sqlastic\Database\DataConverter\DataConverterInterface;
 
 class PgsqlDataConverter implements DataConverterInterface
 {

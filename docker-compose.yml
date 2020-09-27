@@ -32,7 +32,7 @@ services:
     volumes:
       - "./public:/var/www/html"
       - "./src:/usr/local/lib/php/src"
-      - "./bin/console:/usr/local/bin/sqlastic-console"
+      - "./bin/console:/usr/local/bin/synclastic"
     networks:
       - elk
 

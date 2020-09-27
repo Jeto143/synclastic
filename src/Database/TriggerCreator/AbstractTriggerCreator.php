@@ -5,8 +5,8 @@ namespace Jeto\Sqlastic\Database\TriggerCreator;
 use Jeto\Sqlastic\Database\ConnectionSettings;
 use Jeto\Sqlastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Sqlastic\Database\Introspector\DatabaseIntrospectorInterface;
+use Jeto\Sqlastic\Database\Mapping\MappingInterface;
 use Jeto\Sqlastic\Database\PdoFactory;
-use Jeto\Sqlastic\Mapping\Database\MappingInterface;
 
 abstract class AbstractTriggerCreator implements TriggerCreatorInterface
 {

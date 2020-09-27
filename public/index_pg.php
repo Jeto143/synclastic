@@ -15,7 +15,7 @@ use Elasticsearch\ClientBuilder;
 use Jeto\Sqlastic\Database\ConnectionSettings;
 use Jeto\Sqlastic\Database\DataConverter\PgsqlDataConverter;
 use Jeto\Sqlastic\Database\TriggerCreator\PgsqlTriggerCreator;
-use Jeto\Sqlastic\Mapping\Database\FieldMapping\ComputedFieldMapping;
+use Jeto\Sqlastic\Database\Mapping\ComputedFieldMapping;
 
 
 require 'vendor/autoload.php';

@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeto\Sqlastic\Mapping\Database\FieldMapping;
+namespace Jeto\Sqlastic\Database\Mapping;
 
 final class ComputedFieldMapping implements ComputedFieldMappingInterface
 {

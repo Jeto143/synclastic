@@ -2,12 +2,12 @@
 
 namespace Jeto\Synclastic\Index\Definition;
 
-interface DefinitionInterface
+interface IndexDefinitionInterface
 {
     public function getIndexName(): string;
 
     /**
-     * @return Field[]
+     * @return IndexField[]
      */
     public function getIndexFields(): array;
 

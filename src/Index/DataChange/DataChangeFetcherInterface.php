@@ -2,14 +2,14 @@
 
 namespace Jeto\Synclastic\Index\DataChange;
 
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
 
 interface DataChangeFetcherInterface
 {
     /**
      * @return DataChange[]
      */
-    public function fetchDataChanges(DefinitionInterface $indexDefinition): array;
+    public function fetchDataChanges(IndexDefinitionInterface $indexDefinition): array;
 
     /**
      * @var DataChange[] $dataChanges

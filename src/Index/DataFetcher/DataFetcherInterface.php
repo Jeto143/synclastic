@@ -2,7 +2,7 @@
 
 namespace Jeto\Synclastic\Index\DataFetcher;
 
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
 
 interface DataFetcherInterface
 {
@@ -10,5 +10,5 @@ interface DataFetcherInterface
      * @param mixed[]|null $identifiers
      * @return iterable|mixed[][]
      */
-    public function fetchSourceData(DefinitionInterface $indexDefinition, ?array $identifiers = null): iterable;
+    public function fetchSourceData(IndexDefinitionInterface $indexDefinition, ?array $identifiers = null): iterable;
 }

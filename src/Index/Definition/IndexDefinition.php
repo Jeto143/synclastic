@@ -2,11 +2,11 @@
 
 namespace Jeto\Synclastic\Index\Definition;
 
-class Definition implements DefinitionInterface
+class IndexDefinition implements IndexDefinitionInterface
 {
     protected string $indexName;
 
-    /** @var Field[] */
+    /** @var IndexField[] */
     protected array $indexFields;
 
     protected string $identifierFieldName;

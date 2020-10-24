@@ -1,4 +1,7 @@
 <?php
+ini_set('xdebug.var_display_max_depth', '-1');
+ini_set('xdebug.var_display_max_children', '-1');
+ini_set('xdebug.var_display_max_data', '-1');
 /**
  * https://www.reddit.com/r/PHP/comments/2k73l9/whats_the_correct_way_of_namespacing_tests/
  * https://github.com/brick
@@ -8,6 +11,7 @@
  * https://docs.docker.com/network/
  * https://www.elastic.co/guide/en/elasticsearch/guide/master/relations.html
  * https://www.elastic.co/blog/found-keeping-elasticsearch-in-sync
+ * https://github.com/thephpleague/event
  * TODO: replace .htaccess (for xdebug) with proper stuff: https://dev.to/_mertsimsek/using-xdebug-with-docker-2k8o
  * TODO: db_change#object_id should not be an int (so as to accept other PK types)
  * TODO: github repo
@@ -53,22 +57,25 @@
  */
 
 use Elasticsearch\ClientBuilder;
-use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
 use Jeto\Synclastic\Database\DataFetcher\BasicDataFetcher;
 use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
-use Jeto\Synclastic\Index\Builder\Builder;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
-use Jeto\Synclastic\Index\Refiller\Refiller;
-use Jeto\Synclastic\Index\Synchronizer\Synchronizer;
-use Jeto\Synclastic\Index\Updater\Updater;
 use Jeto\Synclastic\Database\IndexDefinition\BasicIndexDefinitionFactory;
+use Jeto\Synclastic\Database\Mapping\BasicFieldMapping;
 use Jeto\Synclastic\Database\Mapping\BasicMappingFactory;
 use Jeto\Synclastic\Database\DataChangeFetcher\DataChangeFetcher;
 use Jeto\Synclastic\Database\Mapping\ComputedFieldMapping;
-use Jeto\Synclastic\Database\Mapping\Mapping;
-use Jeto\Synclastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\Mapping\DatabaseMapping;
+use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
+use Jeto\Synclastic\Database\Mapping\NestedArrayFieldMapping;
+use Jeto\Synclastic\Database\PdoFactory;
+use Jeto\Synclastic\Database\TriggerCreator\MysqlTriggerCreator;
+use Jeto\Synclastic\Index\Builder\IndexBuilder;
+use Jeto\Synclastic\Index\Refiller\IndexRefiller;
+use Jeto\Synclastic\Index\Synchronizer\IndexSynchronizer;
+use Jeto\Synclastic\Index\Updater\IndexUpdater;
 
 require 'vendor/autoload.php';
 
@@ -78,35 +85,70 @@ require 'vendor/autoload.php';
 ////    PDO::ATTR_CASE => PDO::CASE_NATURAL
 //]);
 
-$ldap = ldap_connect('openldap', 1389);
-ldap_set_option($ldap, LDAP_OPT_PROTOCOL_VERSION, 3);
-ldap_bind($ldap, 'cn=admin,dc=example,dc=org', 'adminpassword');
+//$ldap = ldap_connect('openldap', 1389);
+//ldap_set_option($ldap, LDAP_OPT_PROTOCOL_VERSION, 3);
+//ldap_bind($ldap, 'cn=admin,dc=example,dc=org', 'adminpassword');
 
-$connectionSettings = new ConnectionSettings('mysql', 'mysql', 'root', 'asdf007');
+$connectionSettings = new DatabaseConnectionSettings('mysql', 'mysql', 3306, 'root', 'asdf007');
 $databaseIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
 
-$elastic = ClientBuilder::create()->setHosts(['http://elasticsearch:9200'])->build();
+(new PdoFactory())->create($connectionSettings);
 
+$elastic = ClientBuilder::create()->setHosts(['http://elasticsearch:9200'])->build();
 $databaseName = 'employees';
 $tableName = 'employees';
 $indexName = 'employees';
 
 $mapping = (new BasicMappingFactory($databaseIntrospector))->create($databaseName, $tableName, $indexName);
-$indexDefinition = (new BasicIndexDefinitionFactory($databaseIntrospector))->create($indexName, $mapping);
 
-$mapping = new Mapping($databaseName, $tableName, $mapping->getBasicFieldsMappings(), [
+$mapping = new DatabaseMapping($databaseName, $tableName, $indexName, $mapping->getBasicFieldsMappings(), [
     new ComputedFieldMapping(
-        'employees',
+        $databaseName,
         'salaries',
         'SELECT salary FROM employees.salaries s WHERE s.emp_no = :id ORDER BY s.to_date DESC LIMIT 1',
         'this.emp_no',
         'salary',
         'integer'
     )
+], [
+    new NestedArrayFieldMapping(
+        $databaseName,
+        'titles',
+        [
+            new BasicFieldMapping('title', 'varchar')
+        ],
+        'SELECT title FROM employees.titles t WHERE t.emp_no = :id',
+        'this.emp_no',
+        'titles'
+    )
 ]);
 
+$indexDefinition = (new BasicIndexDefinitionFactory($databaseIntrospector))->create($indexName, $mapping);
+
+$dataFetcher = new BasicDataFetcher($mapping, $connectionSettings);
+$dataChangeFetcher = new DataChangeFetcher($connectionSettings, $databaseName);
+
+
+$indexUpdater = new IndexUpdater($elastic);
+$indexRefiller = new IndexRefiller($elastic, $dataFetcher, $indexUpdater);
+$indexSynchronizer = new IndexSynchronizer($dataChangeFetcher, $dataFetcher, $indexUpdater);
+
+$indexSynchronizer->synchronizeDocuments($indexDefinition);
+//$indexRefiller->refillIndex($indexDefinition);
+die;
+
+echo '<pre>'; var_dump(iterator_to_array($dataFetcher->fetchSourceData($indexDefinition))); echo '</pre>';
+die;
+
 $dataConverter = null;//new MysqlDataConverter();
-$builder = new Builder($elastic);
+$builder = new IndexBuilder($elastic);
+
+//$builder->buildIndex($indexDefinition);
+
+(new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping]);
+
+die;
+
 $dataChangeFetcher = new DataChangeFetcher($connectionSettings, $databaseName);
 
 $fetcher = new class($ldap, $mapping, $connectionSettings, $dataConverter) extends BasicDataFetcher {
@@ -115,8 +157,8 @@ $fetcher = new class($ldap, $mapping, $connectionSettings, $dataConverter) exten
 
     public function __construct(
         $ldap,
-        MappingInterface $databaseMapping,
-        ConnectionSettings $connectionSettings,
+        DatabaseMappingInterface $databaseMapping,
+        DatabaseConnectionSettings $connectionSettings,
         ?DataConverterInterface $dataConverter = null,
         ?DatabaseIntrospectorInterface $databaseIntrospector = null
     ) {

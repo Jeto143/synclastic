@@ -3,26 +3,33 @@
 namespace Jeto\Synclastic\ServiceBuilder;
 
 use Elasticsearch\Client as ElasticClient;
-use Jeto\Synclastic\Index\Builder\BuilderInterface;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
+use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
+use Jeto\Synclastic\Database\TriggerCreator\TriggerCreatorInterface;
+use Jeto\Synclastic\Index\Builder\IndexBuilderInterface;
 use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
-use Jeto\Synclastic\Index\Refiller\RefillerInterface;
-use Jeto\Synclastic\Index\Synchronizer\SynchronizerInterface;
-use Jeto\Synclastic\Index\Updater\UpdaterInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
+use Jeto\Synclastic\Index\Refiller\IndexRefillerInterface;
+use Jeto\Synclastic\Index\Synchronizer\IndexSynchronizerInterface;
+use Jeto\Synclastic\Index\Updater\IndexUpdaterInterface;
 
 interface ServiceBuilderInterface
 {
     public function buildElasticClient(): ElasticClient;
 
-    public function buildIndexDefinition(string $mappingName): DefinitionInterface;
+    public function buildIndexDefinition(string $mappingName): IndexDefinitionInterface;
 
-    public function buildIndexDataFetcher(string $mappingName): DataFetcherInterface;
+    public function buildDataFetcher(string $mappingName): DataFetcherInterface;
 
-    public function buildIndexBuilder(string $mappingName): BuilderInterface;
+    public function buildIndexBuilder(string $mappingName): IndexBuilderInterface;
 
-    public function buildIndexUpdater(string $mappingName): UpdaterInterface;
+    public function buildIndexUpdater(string $mappingName): IndexUpdaterInterface;
 
-    public function buildIndexRefiller(string $mappingName): RefillerInterface;
+    public function buildIndexRefiller(string $mappingName): IndexRefillerInterface;
 
-    public function buildIndexSynchronizer(string $mappingName): SynchronizerInterface;
+    public function buildIndexSynchronizer(string $mappingName): IndexSynchronizerInterface;
+
+    public function buildDatabaseConnectionSettings(string $mappingName): DatabaseConnectionSettings;
+
+    public function buildDatabaseMapping(string $mappingName): DatabaseMappingInterface;
 }

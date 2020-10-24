@@ -2,7 +2,7 @@
 
 namespace Jeto\Synclastic\Index\Operation;
 
-final class Operation
+final class IndexOperation
 {
     public const TYPE_ADD = 1;
     public const TYPE_UPDATE = 2;

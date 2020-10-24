@@ -32,6 +32,7 @@ services:
     volumes:
       - "./public:/var/www/html"
       - "./src:/usr/local/lib/php/src"
+      - "./tests:/usr/local/lib/php/tests"
       - "./bin/console:/usr/local/bin/synclastic"
     networks:
       - elk

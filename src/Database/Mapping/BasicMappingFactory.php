@@ -13,11 +13,11 @@ final class BasicMappingFactory
         $this->databaseIntrospector = $databaseIntrospector;
     }
 
-    public function create(string $databaseName, string $tableName, string $indexName): MappingInterface
+    public function create(string $databaseName, string $tableName, string $indexName): DatabaseMappingInterface
     {
         $basicFieldsMappings = $this->computeBasicFieldsMappings($databaseName, $tableName);
 
-        return new Mapping($databaseName, $tableName, $basicFieldsMappings, []);
+        return new DatabaseMapping($databaseName, $tableName, $indexName, $basicFieldsMappings, [], []);
     }
 
     /**

@@ -2,11 +2,11 @@
 
 namespace Jeto\Synclastic\Database\Introspector;
 
-use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 
 final class DatabaseInstrospectorFactory
 {
-    public function create(ConnectionSettings $connectionSettings): DatabaseIntrospectorInterface
+    public function create(DatabaseConnectionSettings $connectionSettings): DatabaseIntrospectorInterface
     {
         $driverName = $connectionSettings->getDriverName();
 

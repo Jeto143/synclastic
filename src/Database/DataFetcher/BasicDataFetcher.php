@@ -2,30 +2,31 @@
 
 namespace Jeto\Synclastic\Database\DataFetcher;
 
-use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
+use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
 use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
 use Jeto\Synclastic\Database\Mapping\BasicFieldMappingInterface;
 use Jeto\Synclastic\Database\Mapping\ComputedFieldMappingInterface;
-use Jeto\Synclastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
+use Jeto\Synclastic\Database\Mapping\NestedArrayFieldMappingInterface;
 use Jeto\Synclastic\Database\PdoFactory;
-use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
 use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
 
 class BasicDataFetcher implements DataFetcherInterface
 {
     protected \PDO $pdo;
 
-    protected MappingInterface $databaseMapping;
+    protected DatabaseMappingInterface $databaseMapping;
 
     protected ?DataConverterInterface $dataConverter;
 
     protected DatabaseIntrospectorInterface $databaseIntrospector;
 
     public function __construct(
-        MappingInterface $databaseMapping,
-        ConnectionSettings $connectionSettings,
+        DatabaseMappingInterface $databaseMapping,
+        DatabaseConnectionSettings $connectionSettings,
         ?DataConverterInterface $dataConverter = null,
         ?DatabaseIntrospectorInterface $databaseIntrospector = null
     ) {
@@ -36,7 +37,7 @@ class BasicDataFetcher implements DataFetcherInterface
             ?? (new DatabaseInstrospectorFactory())->create($connectionSettings);
     }
 
-    public function fetchSourceData(DefinitionInterface $indexDefinition, ?array $identifiers = null): iterable
+    public function fetchSourceData(IndexDefinitionInterface $indexDefinition, ?array $identifiers = null): iterable
     {
         $primaryKeyName = $this->databaseIntrospector->fetchPrimaryKeyName(
             $this->databaseMapping->getDatabaseName(),
@@ -46,24 +47,30 @@ class BasicDataFetcher implements DataFetcherInterface
         $tableData = $this->fetchTableData($primaryKeyName, $identifiers);
 
         $computedFieldsMappings = $this->databaseMapping->getComputedFieldsMappings();
+        $nestedArrayFieldsMappings = $this->databaseMapping->getNestedArrayFieldsMappings();
 
-        if (!$computedFieldsMappings && $this->dataConverter === null) {
+        if (!$computedFieldsMappings && !$nestedArrayFieldsMappings && $this->dataConverter === null) {
             yield from $tableData;
-        }
+        } else {
+            foreach ($tableData as $rowData) {
+                $identifier = $rowData[$primaryKeyName];
 
-        foreach ($tableData as $rowData) {
-            $identifier = $rowData[$primaryKeyName];
+                foreach ($computedFieldsMappings as $computedFieldMapping) {
+                    $computedValue = $this->queryComputedFieldValue($computedFieldMapping, $identifier);
+                    $rowData[$computedFieldMapping->getIndexFieldName()] = $computedValue;
+                }
 
-            foreach ($computedFieldsMappings as $computedFieldMapping) {
-                $computedValue = $this->queryComputedFieldValue($computedFieldMapping, $identifier);
-                $rowData[$computedFieldMapping->getIndexFieldName()] = $computedValue;
+                foreach ($nestedArrayFieldsMappings as $nestedArrayFieldMapping) {
+                    $computedValues = $this->queryNestedArrayFieldValues($nestedArrayFieldMapping, $identifier);
+                    $rowData[$nestedArrayFieldMapping->getIndexFieldName()] = $computedValues;
+                }
+
+                if ($this->dataConverter !== null) {
+                    $rowData = $this->convertRowData($rowData);
+                }
+
+                yield $rowData;
             }
-
-            if ($this->dataConverter !== null) {
-                $rowData = $this->convertRowData($rowData);
-            }
-
-            yield $rowData;
         }
     }
 
@@ -88,6 +95,20 @@ class BasicDataFetcher implements DataFetcherInterface
         $statement->execute([':id' => $primaryKeyValue]);
 
         return $statement->fetchColumn(0);
+    }
+
+    /**
+     * @param mixed $primaryKeyValue
+     * @return array
+     */
+    private function queryNestedArrayFieldValues(
+        NestedArrayFieldMappingInterface $nestedArrayFieldMapping,
+        $primaryKeyValue
+    ) {
+        $statement = $this->pdo->prepare($nestedArrayFieldMapping->getValuesQuery());
+        $statement->execute([':id' => $primaryKeyValue]);
+
+        return $statement->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     private function convertRowData(array $rowData): array
@@ -128,10 +149,11 @@ class BasicDataFetcher implements DataFetcherInterface
             $tableData->execute($identifiers);
         } else {
             $sql = sprintf(
-                "SELECT {$sqlColumnsList} FROM \"%s\".\"%s\" LIMIT 10000",    // FIXME LIMIT
+                "SELECT {$sqlColumnsList} FROM \"%s\".\"%s\" LIMIT 10",    // FIXME LIMIT
                 $this->databaseMapping->getDatabaseName(),
                 $this->databaseMapping->getTableName()
             );
+
             $tableData = $this->pdo->query($sql, \PDO::FETCH_ASSOC);
         }
 

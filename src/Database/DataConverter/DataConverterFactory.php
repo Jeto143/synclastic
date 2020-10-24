@@ -2,12 +2,11 @@
 
 namespace Jeto\Synclastic\Database\DataConverter;
 
-use Jeto\Synclastic\Database\ConnectionSettings;
-use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 
 final class DataConverterFactory
 {
-    public function create(ConnectionSettings $connectionSettings): ?DataConverterInterface
+    public function create(DatabaseConnectionSettings $connectionSettings): ?DataConverterInterface
     {
         $driverName = $connectionSettings->getDriverName();
 

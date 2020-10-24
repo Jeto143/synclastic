@@ -5,28 +5,28 @@ namespace Jeto\Synclastic\Index\Synchronizer;
 use Jeto\Synclastic\Index\DataChange\DataChange;
 use Jeto\Synclastic\Index\DataChange\DataChangeFetcherInterface;
 use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
-use Jeto\Synclastic\Index\Updater\UpdaterInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
+use Jeto\Synclastic\Index\Updater\IndexUpdaterInterface;
 
-final class Synchronizer implements SynchronizerInterface
+final class IndexSynchronizer implements IndexSynchronizerInterface
 {
     private DataChangeFetcherInterface $dataChangeFetcher;
 
-    private DataFetcherInterface $fetcher;
+    private DataFetcherInterface $dataFetcher;
 
-    private UpdaterInterface $updater;
+    private IndexUpdaterInterface $updater;
 
     public function __construct(
         DataChangeFetcherInterface $dataChangeFetcher,
-        DataFetcherInterface $fetcher,
-        UpdaterInterface $updater
+        DataFetcherInterface $dataFetcher,
+        IndexUpdaterInterface $updater
     ) {
         $this->dataChangeFetcher = $dataChangeFetcher;
-        $this->fetcher = $fetcher;
+        $this->dataFetcher = $dataFetcher;
         $this->updater = $updater;
     }
 
-    public function synchronizeIndex(DefinitionInterface $indexDefinition): array
+    public function synchronizeDocuments(IndexDefinitionInterface $indexDefinition): array
     {
         $dataChanges = $this->dataChangeFetcher->fetchDataChanges($indexDefinition);
         if (!$dataChanges) {
@@ -42,9 +42,9 @@ final class Synchronizer implements SynchronizerInterface
         return $operations;
     }
 
-    public function synchronizeDocumentsByIds(DefinitionInterface $indexDefinition, array $identifiers): array
+    public function synchronizeDocumentsByIds(IndexDefinitionInterface $indexDefinition, array $identifiers): array
     {
-        $documentsData = $this->fetcher->fetchSourceData($indexDefinition, $identifiers);
+        $documentsData = $this->dataFetcher->fetchSourceData($indexDefinition, $identifiers);
 
         return $this->updater->synchronizeDocuments($indexDefinition, $documentsData);
     }

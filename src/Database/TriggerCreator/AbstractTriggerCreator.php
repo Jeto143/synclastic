@@ -2,10 +2,10 @@
 
 namespace Jeto\Synclastic\Database\TriggerCreator;
 
-use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
-use Jeto\Synclastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
 use Jeto\Synclastic\Database\PdoFactory;
 
 abstract class AbstractTriggerCreator implements TriggerCreatorInterface
@@ -14,7 +14,7 @@ abstract class AbstractTriggerCreator implements TriggerCreatorInterface
     private DatabaseIntrospectorInterface $databaseIntrospector;
 
     public function __construct(
-        ConnectionSettings $connectionSettings,
+        DatabaseConnectionSettings $connectionSettings,
         DatabaseIntrospectorInterface $databaseIntrospector = null
     ) {
         $this->pdo = (new PdoFactory())->create($connectionSettings);
@@ -23,7 +23,7 @@ abstract class AbstractTriggerCreator implements TriggerCreatorInterface
     }
 
     /**
-     * @param MappingInterface[] $mappings
+     * @param DatabaseMappingInterface[] $mappings
      * @return string[][][]
      */
     protected function computeDataChangeInsertTuples(array $mappings): array
@@ -44,6 +44,15 @@ abstract class AbstractTriggerCreator implements TriggerCreatorInterface
                 $targetDatabaseName = $computedFieldMapping->getTargetDatabaseName();
                 $targetTableName = $computedFieldMapping->getTargetTableName();
                 $ownerIdQuery = $computedFieldMapping->getOwnerIdQuery();
+
+                $tuple = "('{$indexName}', '{$tableName}', ({$ownerIdQuery}))";
+                $tuples[$targetDatabaseName][$targetTableName][] = $tuple;
+            }
+
+            foreach ($mapping->getNestedArrayFieldsMappings() as $nestedArrayFieldMapping) {
+                $targetDatabaseName = $nestedArrayFieldMapping->getTargetDatabaseName();
+                $targetTableName = $nestedArrayFieldMapping->getTargetTableName();
+                $ownerIdQuery = $nestedArrayFieldMapping->getOwnerIdQuery();
 
                 $tuple = "('{$indexName}', '{$tableName}', ({$ownerIdQuery}))";
                 $tuples[$targetDatabaseName][$targetTableName][] = $tuple;

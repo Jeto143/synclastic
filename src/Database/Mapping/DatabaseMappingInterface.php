@@ -2,11 +2,13 @@
 
 namespace Jeto\Synclastic\Database\Mapping;
 
-interface MappingInterface
+interface DatabaseMappingInterface
 {
     public function getDatabaseName(): string;
 
     public function getTableName(): string;
+
+    public function getIndexName(): string;
 
     /**
      * @return BasicFieldMappingInterface[]
@@ -17,4 +19,9 @@ interface MappingInterface
      * @return ComputedFieldMappingInterface[]
      */
     public function getComputedFieldsMappings(): array;
+
+    /**
+     * @return NestedArrayFieldMappingInterface[]
+     */
+    public function getNestedArrayFieldsMappings(): array;
 }

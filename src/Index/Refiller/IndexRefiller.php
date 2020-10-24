@@ -4,31 +4,32 @@ namespace Jeto\Synclastic\Index\Refiller;
 
 use Elasticsearch\Client as ElasticClient;
 use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
-use Jeto\Synclastic\Index\Operation\Operation;
-use Jeto\Synclastic\Index\Updater\UpdaterInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
+use Jeto\Synclastic\Index\Operation\IndexOperation;
+use Jeto\Synclastic\Index\Updater\IndexUpdaterInterface;
 
-final class Refiller implements RefillerInterface
+final class IndexRefiller implements IndexRefillerInterface
 {
     private ElasticClient $elastic;
 
     private DataFetcherInterface $dataFetcher;
 
-    private UpdaterInterface $indexUpdater;
+    private IndexUpdaterInterface $indexUpdater;
 
     public function __construct(
         ElasticClient $elastic,
         DataFetcherInterface $dataFetcher,
-        UpdaterInterface $indexUpdater
+        IndexUpdaterInterface $indexUpdater
     ) {
         $this->elastic = $elastic;
         $this->dataFetcher = $dataFetcher;
         $this->indexUpdater = $indexUpdater;
     }
 
-    public function refillIndex(DefinitionInterface $indexDefinition): array
+    public function refillIndex(IndexDefinitionInterface $indexDefinition): array
     {
         $this->clearIndex($indexDefinition->getIndexName());
+
         return $this->updateIndex($indexDefinition);
     }
 
@@ -45,9 +46,9 @@ final class Refiller implements RefillerInterface
     }
 
     /**
-     * @return Operation[]
+     * @return IndexOperation[]
      */
-    private function updateIndex(DefinitionInterface $indexDefinition): array
+    private function updateIndex(IndexDefinitionInterface $indexDefinition): array
     {
         $documentsData = $this->dataFetcher->fetchSourceData($indexDefinition);
 

@@ -2,7 +2,7 @@
 
 namespace Jeto\Synclastic\ConsoleCommand;
 
-use Jeto\Synclastic\Index\Operation\Operation;
+use Jeto\Synclastic\Index\Operation\IndexOperation;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -34,16 +34,16 @@ abstract class AbstractCommand extends Command
         return $mappingNames ?: array_keys((array)$configData->mappings);
     }
 
-    protected function computeOperationText(Operation $operation): string
+    protected function computeOperationText(IndexOperation $operation): string
     {
         switch ($operation->getType()) {
-            case Operation::TYPE_ADD:
+            case IndexOperation::TYPE_ADD:
                 $actionString = 'Added';
                 break;
-            case Operation::TYPE_DELETE:
+            case IndexOperation::TYPE_DELETE:
                 $actionString = 'Deleted';
                 break;
-            case Operation::TYPE_UPDATE:
+            case IndexOperation::TYPE_UPDATE:
             default:
                 $actionString = 'Updated';
         }

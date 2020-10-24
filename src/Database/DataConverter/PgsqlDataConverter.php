@@ -2,8 +2,6 @@
 
 namespace Jeto\Synclastic\Database\DataConverter;
 
-use Jeto\Synclastic\Database\DataConverter\DataConverterInterface;
-
 class PgsqlDataConverter implements DataConverterInterface
 {
     /**

@@ -45,7 +45,7 @@ final class SynchronizeCommand extends AbstractCommand
                 $operations = $indexSynchronizer->synchronizeDocumentsByIds($indexDefinition, $identifiers);
             } else {
                 $output->writeln("<comment>- [{$mappingName}] Synchronizing...</comment>");
-                $operations = $indexSynchronizer->synchronizeIndex($indexDefinition);
+                $operations = $indexSynchronizer->synchronizeDocuments($indexDefinition);
             }
             foreach ($operations as $operation) {
                 $output->writeln("<comment>- {$this->computeOperationText($operation)}...");

@@ -2,12 +2,12 @@
 
 namespace Jeto\Synclastic\Database\TriggerCreator;
 
-use Jeto\Synclastic\Database\Mapping\MappingInterface;
+use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
 
 interface TriggerCreatorInterface
 {
     /**
-     * @param MappingInterface[] $mappings
+     * @param DatabaseMappingInterface[] $mappings
      */
     public function createDatabaseTriggers(array $mappings): void;
 }

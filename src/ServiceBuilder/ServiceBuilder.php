@@ -4,25 +4,27 @@ namespace Jeto\Synclastic\ServiceBuilder;
 
 use Elasticsearch\Client as ElasticClient;
 use Elasticsearch\ClientBuilder as ElasticClientBuilder;
-use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\DataChangeFetcher\DataChangeFetcher;
 use Jeto\Synclastic\Database\DataConverter\DataConverterFactory;
 use Jeto\Synclastic\Database\DataFetcher\BasicDataFetcher;
 use Jeto\Synclastic\Database\IndexDefinition\BasicIndexDefinitionFactory;
 use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
 use Jeto\Synclastic\Database\Mapping\BasicMappingFactory;
-use Jeto\Synclastic\Database\Mapping\MappingInterface;
-use Jeto\Synclastic\Index\Builder\Builder;
-use Jeto\Synclastic\Index\Builder\BuilderInterface;
+use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
+use Jeto\Synclastic\Database\TriggerCreator\DatabaseTriggerCreatorFactory;
+use Jeto\Synclastic\Database\TriggerCreator\TriggerCreatorInterface;
+use Jeto\Synclastic\Index\Builder\IndexBuilder;
+use Jeto\Synclastic\Index\Builder\IndexBuilderInterface;
 use Jeto\Synclastic\Index\DataChange\DataChangeFetcherInterface;
 use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
-use Jeto\Synclastic\Index\Refiller\Refiller;
-use Jeto\Synclastic\Index\Refiller\RefillerInterface;
-use Jeto\Synclastic\Index\Synchronizer\Synchronizer;
-use Jeto\Synclastic\Index\Synchronizer\SynchronizerInterface;
-use Jeto\Synclastic\Index\Updater\Updater;
-use Jeto\Synclastic\Index\Updater\UpdaterInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
+use Jeto\Synclastic\Index\Refiller\IndexRefiller;
+use Jeto\Synclastic\Index\Refiller\IndexRefillerInterface;
+use Jeto\Synclastic\Index\Synchronizer\IndexSynchronizer;
+use Jeto\Synclastic\Index\Synchronizer\IndexSynchronizerInterface;
+use Jeto\Synclastic\Index\Updater\IndexUpdater;
+use Jeto\Synclastic\Index\Updater\IndexUpdaterInterface;
 
 final class ServiceBuilder implements ServiceBuilderInterface
 {
@@ -38,15 +40,15 @@ final class ServiceBuilder implements ServiceBuilderInterface
         return ElasticClientBuilder::create()->setHosts((array)$this->configData->elastic->serverUrl)->build();
     }
 
-    public function buildIndexDefinition(string $mappingName): DefinitionInterface
+    public function buildIndexDefinition(string $mappingName): IndexDefinitionInterface
     {
         $mappingDesc = $this->getMappingDesc($mappingName);
 
         switch ($mappingDesc->type) {
             case 'database':
-                $connectionSettings = $this->createDatabaseConnectionSettings($mappingName);
+                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
                 $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
-                $databaseMapping = $this->createDatabaseMapping($mappingName);
+                $databaseMapping = $this->buildDatabaseMapping($mappingName);
 
                 return (new BasicIndexDefinitionFactory($dbIntrospector))->create(
                     $mappingDesc->indexName ?? $mappingName,
@@ -58,14 +60,51 @@ final class ServiceBuilder implements ServiceBuilderInterface
         }
     }
 
-    public function buildIndexDataFetcher(string $mappingName): DataFetcherInterface
+     // FIXME: handle non-database mapping case (error)
+    public function buildDatabaseConnectionSettings(string $mappingName): DatabaseConnectionSettings
+    {
+        $mappingDesc = $this->getMappingDesc($mappingName);
+
+        $dbConnectionsDesc = (array)$this->configData->databaseConnections;
+
+        $dbConnectionDesc = $dbConnectionsDesc[$mappingDesc->databaseConnection];
+
+        return new DatabaseConnectionSettings(
+            $dbConnectionDesc->driver,
+            $dbConnectionDesc->hostname,
+            $dbConnectionDesc->port ?? null,
+            $dbConnectionDesc->username ?? null,
+            $dbConnectionDesc->password ?? null
+        );
+    }
+
+    public function buildDatabaseMapping(string $mappingName): DatabaseMappingInterface
     {
         $mappingDesc = $this->getMappingDesc($mappingName);
 
         switch ($mappingDesc->type) {
             case 'database':
-                $databaseMapping = $this->createDatabaseMapping($mappingName);
-                $connectionSettings = $this->createDatabaseConnectionSettings($mappingName);
+                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
+                $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
+
+                return (new BasicMappingFactory($dbIntrospector))->create(
+                    $mappingDesc->databaseName,
+                    $mappingDesc->tableName,
+                    $mappingDesc->indexName ?? $mappingName
+                );
+            default:
+                throw new \RuntimeException('TODO (also change exception type)');
+        }
+    }
+
+    public function buildDataFetcher(string $mappingName): DataFetcherInterface
+    {
+        $mappingDesc = $this->getMappingDesc($mappingName);
+
+        switch ($mappingDesc->type) {
+            case 'database':
+                $databaseMapping = $this->buildDatabaseMapping($mappingName);
+                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
                 $dataConverter = (new DataConverterFactory())->create($connectionSettings);
                 $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
 
@@ -76,32 +115,32 @@ final class ServiceBuilder implements ServiceBuilderInterface
         }
     }
 
-    public function buildIndexBuilder(string $mappingName): BuilderInterface
+    public function buildIndexBuilder(string $mappingName): IndexBuilderInterface
     {
-        return new Builder($this->buildElasticClient());
+        return new IndexBuilder($this->buildElasticClient());
     }
 
-    public function buildIndexUpdater(string $mappingName): UpdaterInterface
+    public function buildIndexUpdater(string $mappingName): IndexUpdaterInterface
     {
-        return new Updater($this->buildElasticClient());
+        return new IndexUpdater($this->buildElasticClient());
     }
 
-    public function buildIndexRefiller(string $mappingName): RefillerInterface
+    public function buildIndexRefiller(string $mappingName): IndexRefillerInterface
     {
         $elasticClient = $this->buildElasticClient();
-        $dataFetcher = $this->buildIndexDataFetcher($mappingName);
+        $dataFetcher = $this->buildDataFetcher($mappingName);
         $updater = $this->buildIndexUpdater($mappingName);
 
-        return new Refiller($elasticClient, $dataFetcher, $updater);
+        return new IndexRefiller($elasticClient, $dataFetcher, $updater);
     }
 
-    public function buildIndexSynchronizer(string $mappingName): SynchronizerInterface
+    public function buildIndexSynchronizer(string $mappingName): IndexSynchronizerInterface
     {
-        $dataChangeFetcher = $this->createDataChangeFetcher($mappingName);
-        $dataFetcher = $this->buildIndexDataFetcher($mappingName);
+        $dataChangeFetcher = $this->buildDataChangeFetcher($mappingName);
+        $dataFetcher = $this->buildDataFetcher($mappingName);
         $updater = $this->buildIndexUpdater($mappingName);
 
-        return new Synchronizer($dataChangeFetcher, $dataFetcher, $updater);
+        return new IndexSynchronizer($dataChangeFetcher, $dataFetcher, $updater);
     }
 
     private function getMappingDesc(string $mappingName): \stdClass
@@ -111,47 +150,17 @@ final class ServiceBuilder implements ServiceBuilderInterface
         return $mappings[$mappingName];   // FIXME: exception if not found
     }
 
-    private function createDataChangeFetcher(string $mappingName): DataChangeFetcherInterface
+    private function buildDataChangeFetcher(string $mappingName): DataChangeFetcherInterface
     {
         $mappingDesc = $this->getMappingDesc($mappingName);
 
         switch ($mappingDesc->type) {
             case 'database':
-                $connectionSettings = $this->createDatabaseConnectionSettings($mappingName);
+                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
                 return new DataChangeFetcher($connectionSettings, $mappingDesc->databaseName);
 
             default:
                 throw new \RuntimeException('TODO (also change exception type)');
         }
-    }
-
-    private function createDatabaseConnectionSettings(string $mappingName): ConnectionSettings
-    {
-        $mappingDesc = $this->getMappingDesc($mappingName);
-
-        $dbConnectionsDesc = (array)$this->configData->databaseConnections;
-
-        $dbConnectionDesc = $dbConnectionsDesc[$mappingDesc->databaseConnection];
-
-        return new ConnectionSettings(
-            $dbConnectionDesc->driver,
-            $dbConnectionDesc->hostname,
-            $dbConnectionDesc->username ?? null,
-            $dbConnectionDesc->password ?? null
-        );
-    }
-
-    private function createDatabaseMapping(string $mappingName): MappingInterface
-    {
-        $mappingDesc = $this->getMappingDesc($mappingName);
-
-        $connectionSettings = $this->createDatabaseConnectionSettings($mappingName);
-        $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
-
-        return (new BasicMappingFactory($dbIntrospector))->create(
-            $mappingDesc->databaseName,
-            $mappingDesc->tableName,
-            $mappingDesc->indexName ?? $mappingName
-        );
     }
 }

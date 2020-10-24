@@ -2,11 +2,11 @@
 
 namespace Jeto\Synclastic\Database\DataChangeFetcher;
 
-use Jeto\Synclastic\Database\ConnectionSettings;
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\PdoFactory;
 use Jeto\Synclastic\Index\DataChange\DataChange;
 use Jeto\Synclastic\Index\DataChange\DataChangeFetcherInterface;
-use Jeto\Synclastic\Index\Definition\DefinitionInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
 
 final class DataChangeFetcher implements DataChangeFetcherInterface
 {
@@ -14,13 +14,13 @@ final class DataChangeFetcher implements DataChangeFetcherInterface
 
     private string $databaseName;
 
-    public function __construct(ConnectionSettings $connectionSettings, string $databaseName)
+    public function __construct(DatabaseConnectionSettings $connectionSettings, string $databaseName)
     {
         $this->pdo = (new PdoFactory())->create($connectionSettings);
         $this->databaseName = $databaseName;
     }
 
-    public function fetchDataChanges(DefinitionInterface $indexDefinition): array
+    public function fetchDataChanges(IndexDefinitionInterface $indexDefinition): array
     {
         $statement = $this->pdo->prepare(<<<SQL
             SELECT "id", "object_type" AS "objectType", "object_id" AS "objectId"

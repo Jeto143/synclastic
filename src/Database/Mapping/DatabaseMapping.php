@@ -2,28 +2,37 @@
 
 namespace Jeto\Synclastic\Database\Mapping;
 
-class Mapping implements MappingInterface
+class DatabaseMapping implements DatabaseMappingInterface
 {
     private string $databaseName;
 
     private string $tableName;
 
+    private string $indexName;
+
     /** @var BasicFieldMappingInterface[] */
-    private ?array $basicFieldsMappings;
+    private array $basicFieldsMappings;
 
     /** @var ComputedFieldMappingInterface[] */
     private array $computedFieldsMappings;
 
+    /** @var NestedArrayFieldMappingInterface[] */
+    private array $nestedArrayFieldsMappings;
+
     public function __construct(
         string $databaseName,
         string $tableName,
-        ?array $basicFieldsMappings,
-        array $computedFieldsMappings
+        string $indexName,
+        array $basicFieldsMappings,
+        array $computedFieldsMappings,
+        array $nestedArrayFieldsMappings
     ) {
         $this->databaseName = $databaseName;
         $this->tableName = $tableName;
+        $this->indexName = $indexName;
         $this->basicFieldsMappings = $basicFieldsMappings;
         $this->computedFieldsMappings = $computedFieldsMappings;
+        $this->nestedArrayFieldsMappings = $nestedArrayFieldsMappings;
     }
 
     public function getDatabaseName(): string
@@ -36,6 +45,11 @@ class Mapping implements MappingInterface
         return $this->tableName;
     }
 
+    public function getIndexName(): string
+    {
+        return $this->indexName;
+    }
+
     public function getBasicFieldsMappings(): array
     {
         return $this->basicFieldsMappings;
@@ -44,5 +58,10 @@ class Mapping implements MappingInterface
     public function getComputedFieldsMappings(): array
     {
         return $this->computedFieldsMappings;
+    }
+
+    public function getNestedArrayFieldsMappings(): array
+    {
+        return $this->nestedArrayFieldsMappings;
     }
 }

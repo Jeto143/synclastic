@@ -41,9 +41,9 @@ final class DataChangeFetcher implements DataChangeFetcherInterface
 
         $dataChangesIds = array_map(static fn(DataChange $dataChange) => $dataChange->getId(), $dataChanges);
 
-        $in  = str_repeat('?,', count($dataChangesIds) - 1) . '?';
+        $in = str_repeat('?,', count($dataChangesIds) - 1) . '?';
         $this->pdo
-            ->prepare("DELETE FROM \"{$this->databaseName}\".\"data_change\" WHERE \"id\" = {$in}")
+            ->prepare("DELETE FROM \"{$this->databaseName}\".\"data_change\" WHERE \"id\" IN ({$in})")
             ->execute($dataChangesIds);
     }
 }

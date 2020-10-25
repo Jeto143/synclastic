@@ -1,12 +1,11 @@
 <?php
 
-namespace Jeto\Synclastic\Tests\Database;
+namespace Jeto\Synclastic\Tests\Database\Introspector;
 
-use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\Introspector\MysqlDatabaseIntrospector;
-use PHPUnit\Framework\TestCase;
+use Jeto\Synclastic\Tests\Database\TestCase as DatabaseTestCase;
 
-final class MysqlDatabaseIntrospectorTest extends TestCase
+final class MysqlDatabaseIntrospectorTest extends DatabaseTestCase
 {
     private const DATABASE_NAME = 'testdb';
     private const TABLE_NAME = 'person';
@@ -17,13 +16,14 @@ final class MysqlDatabaseIntrospectorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->pdo = new \PDO('mysql:host=mysql', 'root', 'asdf007', [
+        $connectionSettings = $this->createMysqlDatabaseConnectionSettings();
+        $this->mysqlDatabaseIntrospector = new MysqlDatabaseIntrospector($connectionSettings);
+
+        $dsn = sprintf('mysql:host=%s;port=%d', self::MYSQL_HOSTNAME, self::MYSQL_PORT);
+        $this->pdo = new \PDO($dsn, self::MYSQL_USERNAME, self::MYSQL_PASSWORD, [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_EMULATE_PREPARES => false
         ]);
-
-        $connectionSettings = new DatabaseConnectionSettings('mysql', 'mysql', 3306, 'root', 'asdf007');
-        $this->mysqlDatabaseIntrospector = new MysqlDatabaseIntrospector($connectionSettings);
 
         $this->setupDbData();
     }

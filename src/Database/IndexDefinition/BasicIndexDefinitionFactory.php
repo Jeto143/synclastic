@@ -3,13 +3,12 @@
 namespace Jeto\Synclastic\Database\IndexDefinition;
 
 use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
-use Jeto\Synclastic\Database\Mapping\BasicFieldMappingInterface;
 use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
 use Jeto\Synclastic\Database\Mapping\FieldMappingInterface;
 use Jeto\Synclastic\Database\Mapping\NestedArrayFieldMappingInterface;
-use Jeto\Synclastic\Index\Definition\IndexDefinition as IndexDefinition;
-use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface as IndexDefinitionInterface;
-use Jeto\Synclastic\Index\Definition\IndexField as IndexField;
+use Jeto\Synclastic\Index\Definition\IndexDefinition;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
+use Jeto\Synclastic\Index\Definition\IndexField;
 
 final class BasicIndexDefinitionFactory
 {

@@ -17,7 +17,7 @@ services:
     depends_on:
       - elasticsearch
     ports:
-      - "5601:5601"
+      - "56010:5601"
     environment:
       SERVER_NAME: kibana
       ELASTICSEARCH_HOSTS: 'http://elasticsearch:9200'

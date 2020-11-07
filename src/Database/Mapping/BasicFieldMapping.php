@@ -6,11 +6,13 @@ final class BasicFieldMapping implements BasicFieldMappingInterface
 {
     private string $databaseColumnName;
     private string $databaseColumnType;
+    private string $indexFieldType;
 
-    public function __construct(string $databaseColumnName, string $databaseColumnType)
+    public function __construct(string $databaseColumnName, string $databaseColumnType, ?string $indexFieldType = null)
     {
         $this->databaseColumnName = $databaseColumnName;
         $this->databaseColumnType = $databaseColumnType;
+        $this->indexFieldType = $indexFieldType ?? $this->computeDefaultIndexFieldType($databaseColumnType);
     }
 
     public function getDatabaseColumnName(): string
@@ -30,7 +32,12 @@ final class BasicFieldMapping implements BasicFieldMappingInterface
 
     public function getIndexFieldType(): string
     {
-        switch ($this->databaseColumnType) {
+        return $this->indexFieldType;
+    }
+
+    private function computeDefaultIndexFieldType(string $databaseColumnType): string
+    {
+        switch ($databaseColumnType) {
             case 'int':
             case 'tinyint':
             case 'integer':

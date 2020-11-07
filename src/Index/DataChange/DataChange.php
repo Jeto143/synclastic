@@ -7,7 +7,17 @@ final class DataChange
     private int $id;
     private string $objectType;
     // FIXME: mixed
-    private int $objectId;
+    private string $objectId;
+
+    public static function create(int $id, string $objectType, string $objectId): DataChange
+    {
+        $dataChange = new self();
+        $dataChange->id = $id;
+        $dataChange->objectType = $objectType;
+        $dataChange->objectId = $objectId;
+
+        return $dataChange;
+    }
 
     public function getId(): int
     {
@@ -20,7 +30,7 @@ final class DataChange
     }
 
     // FIXME: mixed
-    public function getObjectId(): int
+    public function getObjectId(): string
     {
         return $this->objectId;
     }

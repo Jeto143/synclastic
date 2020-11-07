@@ -99,12 +99,11 @@ class BasicDataFetcher implements DataFetcherInterface
 
     /**
      * @param mixed $primaryKeyValue
-     * @return array
      */
     private function queryNestedArrayFieldValues(
         NestedArrayFieldMappingInterface $nestedArrayFieldMapping,
         $primaryKeyValue
-    ) {
+    ): array {
         $statement = $this->pdo->prepare($nestedArrayFieldMapping->getValuesQuery());
         $statement->execute([':id' => $primaryKeyValue]);
 

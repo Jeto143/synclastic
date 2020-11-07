@@ -24,10 +24,10 @@ final class BuildCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $configData = $this->fetchConfigurationData($input);
-        $mappingNames = $this->fetchMappingNames($configData, $input);
+        $configuration = $this->fetchConfigurationData($input);
+        $mappingNames = $this->fetchMappingNames($configuration, $input);
 
-        $serviceBuilder = new ServiceBuilder($configData);
+        $serviceBuilder = new ServiceBuilder($configuration);
 
         foreach ($mappingNames as $mappingName) {
             $indexDefinition = $serviceBuilder->buildIndexDefinition($mappingName);

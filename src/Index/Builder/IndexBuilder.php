@@ -69,7 +69,7 @@ final class IndexBuilder implements IndexBuilderInterface
     private function reindex(string $indexName, array $indexFieldsProperties): void
     {
         $indexSettings = $this->elastic->indices()->getSettings(['index' => $indexName]);
-        $currentSettings = $indexSettings[$indexName]['settings']['index'];
+        $currentSettings = reset($indexSettings)['settings']['index'];
 
         $newIndexName = $this->createIndex($indexName, $indexFieldsProperties, [
             'number_of_shards' => $currentSettings['number_of_shards'],
@@ -104,12 +104,18 @@ final class IndexBuilder implements IndexBuilderInterface
 
     private function indexRequiresReindexing(array $index, array $indexFieldsProperties): bool
     {
+        $indexMappingProperties = $index['mappings']['properties'];
+
+        if (count($indexMappingProperties) !== count($indexFieldsProperties)) {
+            return true;
+        }
+
         foreach ($indexFieldsProperties as $fieldName => $indexFieldProperty) {
-            if (!isset($index['mappings']['properties'][$fieldName])) {
+            if (!isset($indexMappingProperties[$fieldName])) {
                 return true;
             }
 
-            $indexFieldType = $index['mappings']['properties'][$fieldName]['type'];
+            $indexFieldType = $indexMappingProperties[$fieldName]['type'];
 
             $typeIsCompatible = in_array($indexFieldType, [null, $indexFieldProperty['type']], true);
 

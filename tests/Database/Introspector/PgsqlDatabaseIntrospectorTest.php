@@ -16,14 +16,9 @@ final class PgsqlDatabaseIntrospectorTest extends DatabaseTestCase
 
     protected function setUp(): void
     {
+        $this->pdo = $this->createPgsqlPdo();
         $connectionSettings = $this->createPgsqlDatabaseConnectionSettings();
         $this->pgsqlDatabaseIntrospector = new PgsqlDatabaseIntrospector($connectionSettings);
-
-        $dsn = sprintf('pgsql:host=%s;port=%d', self::PGSQL_HOSTNAME, self::PGSQL_PORT);
-        $this->pdo = new \PDO($dsn, self::PGSQL_USERNAME, self::PGSQL_PASSWORD, [
-            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-            \PDO::ATTR_EMULATE_PREPARES => false
-        ]);
 
         $this->setupDbData();
     }
@@ -43,7 +38,7 @@ final class PgsqlDatabaseIntrospectorTest extends DatabaseTestCase
 
     public function testFetchColumnsTypes(): void
     {
-        self::assertSame(
+        self::assertEqualsCanonicalizing(
             ['id' => 'integer', 'name' => 'character varying', 'email' => 'character varying', 'age' => 'smallint'],
             $this->pgsqlDatabaseIntrospector->fetchColumnsTypes(self::SCHEMA_NAME, self::TABLE_NAME)
         );

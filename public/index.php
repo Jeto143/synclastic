@@ -49,6 +49,7 @@ ini_set('xdebug.var_display_max_data', '-1');
  * TODO: find a more accurate type hinting for "mixed" identifiers (int|string|\DateTime?)
  * TODO: register yaml mapping type parsers, one for each mapping type
  * TODO: populator -> filler
+ * TODO: sometimes methods return keyed arrays, sometimes it doesn't matter, make sure all is right/consistent
  *
  * TODO: CRON sync
  * TODO: volumes section in docker-compose for ES (indices aren't saved between sessions)
@@ -143,8 +144,9 @@ die;
 $dataConverter = null;//new MysqlDataConverter();
 $builder = new IndexBuilder($elastic);
 
-//$builder->buildIndex($indexDefinition);
+$builder->buildIndex($indexDefinition);
 
+die;
 (new MysqlTriggerCreator($connectionSettings))->createDatabaseTriggers([$mapping]);
 
 die;

@@ -1,24 +1,25 @@
 <?php
 
-namespace Jeto\Synclastic\Tests\Database\Introspector;
+namespace Jeto\Synclastic\Tests\Database\TriggerCreator;
 
-use Jeto\Synclastic\Database\Introspector\MysqlDatabaseIntrospector;
+use Jeto\Synclastic\Database\Mapping\DatabaseMapping;
+use Jeto\Synclastic\Database\TriggerCreator\MysqlTriggerCreator;
 use Jeto\Synclastic\Tests\Database\TestCase as DatabaseTestCase;
 
-final class MysqlDatabaseIntrospectorTest extends DatabaseTestCase
+final class MysqlTriggerCreatorTest extends DatabaseTestCase
 {
     private const DATABASE_NAME = 'testdb';
     private const TABLE_NAME = 'person';
 
     private \PDO $pdo;
 
-    private MysqlDatabaseIntrospector $mysqlDatabaseIntrospector;
+    private MysqlTriggerCreator $mysqlTriggerCreator;
 
     protected function setUp(): void
     {
         $this->pdo = $this->createMysqlPdo();
         $connectionSettings = $this->createMysqlDatabaseConnectionSettings();
-        $this->mysqlDatabaseIntrospector = new MysqlDatabaseIntrospector($connectionSettings);
+        $this->mysqlTriggerCreator = new MysqlTriggerCreator($connectionSettings);
 
         $this->setupDbData();
     }
@@ -28,20 +29,10 @@ final class MysqlDatabaseIntrospectorTest extends DatabaseTestCase
         $this->pdo->exec(sprintf("DROP DATABASE `%s`", self::DATABASE_NAME));
     }
 
-    public function testFetchPrimaryKeyName(): void
+    public function testCreateDatabaseTriggers(): void
     {
-        self::assertSame(
-            'id',
-            $this->mysqlDatabaseIntrospector->fetchPrimaryKeyName(self::DATABASE_NAME, self::TABLE_NAME)
-        );
-    }
-
-    public function testFetchColumnsTypes(): void
-    {
-        self::assertEqualsCanonicalizing(
-            ['id' => 'int', 'name' => 'varchar', 'email' => 'varchar', 'age' => 'tinyint'],
-            $this->mysqlDatabaseIntrospector->fetchColumnsTypes(self::DATABASE_NAME, self::TABLE_NAME)
-        );
+//        $databaseMapping = new DatabaseMapping(self::DATABASE_NAME, self::TABLE_NAME, 'testindex', [], [], []);
+//        $this->mysqlTriggerCreator->createDatabaseTriggers([$databaseMapping]);
     }
 
     private function setupDbData(): void

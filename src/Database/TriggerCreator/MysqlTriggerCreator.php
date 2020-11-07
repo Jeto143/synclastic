@@ -2,6 +2,7 @@
 
 namespace Jeto\Synclastic\Database\TriggerCreator;
 
+// FIXME: make `data_change` table name configurable
 final class MysqlTriggerCreator extends AbstractTriggerCreator
 {
     /** @inheritDoc */
@@ -20,12 +21,12 @@ final class MysqlTriggerCreator extends AbstractTriggerCreator
                     $this->pdo->exec("DROP TRIGGER IF EXISTS `{$databaseName}`.`{$triggerName}`");
 
                     $this->pdo->exec(<<<SQL
-                    	CREATE TRIGGER `{$databaseName}`.`{$triggerName}` 
-                    	AFTER {$action} ON `{$tableName}` FOR EACH ROW 
-                    	INSERT IGNORE INTO `data_change` 
-                    		(`index`, `object_type`, `object_id`) 
-                    	VALUES 
-                    		{$tuplesSql}
+                        CREATE TRIGGER `{$databaseName}`.`{$triggerName}` 
+                        AFTER {$action} ON `{$tableName}` FOR EACH ROW 
+                        INSERT IGNORE INTO `data_change` 
+                            (`index`, `object_type`, `object_id`) 
+                        VALUES 
+                            {$tuplesSql}
                     SQL);
                 }
             }

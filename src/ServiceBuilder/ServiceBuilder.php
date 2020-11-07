@@ -4,14 +4,24 @@ namespace Jeto\Synclastic\ServiceBuilder;
 
 use Elasticsearch\Client as ElasticClient;
 use Elasticsearch\ClientBuilder as ElasticClientBuilder;
+use Jeto\Synclastic\Configuration\AbstractMappingConfiguration;
+use Jeto\Synclastic\Configuration\Configuration;
+use Jeto\Synclastic\Configuration\DatabaseBasicFieldConfiguration;
+use Jeto\Synclastic\Configuration\DatabaseComputedFieldConfiguration;
+use Jeto\Synclastic\Configuration\DatabaseMappingConfiguration;
+use Jeto\Synclastic\Configuration\DatabaseNestedArrayFieldConfiguration;
 use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\DataChangeFetcher\DataChangeFetcher;
 use Jeto\Synclastic\Database\DataConverter\DataConverterFactory;
 use Jeto\Synclastic\Database\DataFetcher\BasicDataFetcher;
 use Jeto\Synclastic\Database\IndexDefinition\BasicIndexDefinitionFactory;
 use Jeto\Synclastic\Database\Introspector\DatabaseInstrospectorFactory;
+use Jeto\Synclastic\Database\Mapping\BasicFieldMapping;
 use Jeto\Synclastic\Database\Mapping\BasicMappingFactory;
+use Jeto\Synclastic\Database\Mapping\ComputedFieldMapping;
+use Jeto\Synclastic\Database\Mapping\DatabaseMapping;
 use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
+use Jeto\Synclastic\Database\Mapping\NestedArrayFieldMapping;
 use Jeto\Synclastic\Database\TriggerCreator\DatabaseTriggerCreatorFactory;
 use Jeto\Synclastic\Database\TriggerCreator\TriggerCreatorInterface;
 use Jeto\Synclastic\Index\Builder\IndexBuilder;
@@ -28,91 +38,168 @@ use Jeto\Synclastic\Index\Updater\IndexUpdaterInterface;
 
 final class ServiceBuilder implements ServiceBuilderInterface
 {
-    private \stdClass $configData;
+    private Configuration $configuration;
 
-    public function __construct(\stdClass $configData)  // FIXME: actual named DTO for config
+    public function __construct(Configuration $configuration)  // FIXME: actual named DTO for config
     {
-        $this->configData = $configData;
+        $this->configuration = $configuration;
     }
 
     public function buildElasticClient(): ElasticClient
     {
-        return ElasticClientBuilder::create()->setHosts((array)$this->configData->elastic->serverUrl)->build();
+        $serverUrl = $this->configuration->getElasticConfiguration()->getServerUrl();
+
+        return ElasticClientBuilder::create()->setHosts((array)$serverUrl)->build();
     }
 
     public function buildIndexDefinition(string $mappingName): IndexDefinitionInterface
     {
-        $mappingDesc = $this->getMappingDesc($mappingName);
+        $mappingConfiguration = $this->getMappingConfiguration($mappingName);
 
-        switch ($mappingDesc->type) {
-            case 'database':
-                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
-                $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
-                $databaseMapping = $this->buildDatabaseMapping($mappingName);
+        if ($mappingConfiguration instanceof DatabaseMappingConfiguration) {
+            $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
+            $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
+            $databaseMapping = $this->buildDatabaseMapping($mappingName);
 
-                return (new BasicIndexDefinitionFactory($dbIntrospector))->create(
-                    $mappingDesc->indexName ?? $mappingName,
-                    $databaseMapping
-                );
-
-            default:
-                throw new \RuntimeException('TODO (also change exception type)');
+            return (new BasicIndexDefinitionFactory($dbIntrospector))->create(
+                $mappingConfiguration->indexName ?? $mappingName,
+                $databaseMapping
+            );
         }
+
+        throw new \RuntimeException('TODO (also change exception type)');
     }
 
      // FIXME: handle non-database mapping case (error)
     public function buildDatabaseConnectionSettings(string $mappingName): DatabaseConnectionSettings
     {
-        $mappingDesc = $this->getMappingDesc($mappingName);
+        /** @var DatabaseMappingConfiguration $mappingConfiguration */
+        $mappingConfiguration = $this->getMappingConfiguration($mappingName);
 
-        $dbConnectionsDesc = (array)$this->configData->databaseConnections;
-
-        $dbConnectionDesc = $dbConnectionsDesc[$mappingDesc->databaseConnection];
+        $databaseConnectionConfiguration = $mappingConfiguration->getDatabaseConnectionConfiguration();
 
         return new DatabaseConnectionSettings(
-            $dbConnectionDesc->driver,
-            $dbConnectionDesc->hostname,
-            $dbConnectionDesc->port ?? null,
-            $dbConnectionDesc->username ?? null,
-            $dbConnectionDesc->password ?? null
+            $databaseConnectionConfiguration->getDriver(),
+            $databaseConnectionConfiguration->getHostname(),
+            $databaseConnectionConfiguration->getPort(),
+            $databaseConnectionConfiguration->getUsername(),
+            $databaseConnectionConfiguration->getPassword()
         );
     }
 
+    // FIXME: mess
     public function buildDatabaseMapping(string $mappingName): DatabaseMappingInterface
     {
-        $mappingDesc = $this->getMappingDesc($mappingName);
+        $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
+        $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
 
-        switch ($mappingDesc->type) {
-            case 'database':
-                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
-                $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
+        /** @var DatabaseMappingConfiguration $mappingConfiguration */
+        $mappingConfiguration = $this->getMappingConfiguration($mappingName);
 
-                return (new BasicMappingFactory($dbIntrospector))->create(
-                    $mappingDesc->databaseName,
-                    $mappingDesc->tableName,
-                    $mappingDesc->indexName ?? $mappingName
+        $columnsTypes = $dbIntrospector->fetchColumnsTypes(
+            $mappingConfiguration->getDatabaseName(),
+            $mappingConfiguration->getTableName()
+        );
+
+        $basicFieldsMappings = [];
+        $computedFieldsMappings = [];
+        $nestedArrayFieldsMappings = [];
+
+        $fieldMappingStrategy = $mappingConfiguration->getFieldMappingStrategy()
+            ?? DatabaseMappingConfiguration::FIELD_MAPPING_STRATEGY_AUTOMATIC;
+
+        foreach ($mappingConfiguration->getFieldsConfigurations() as $fieldConfiguration) {
+            if ($fieldConfiguration instanceof DatabaseComputedFieldConfiguration) {
+                $computedFieldsMappings[$fieldConfiguration->getIndexFieldName()] = new ComputedFieldMapping(
+                    $fieldConfiguration->getDatabaseName(),
+                    $fieldConfiguration->getTableName(),
+                    $fieldConfiguration->getValueQuery(),
+                    $fieldConfiguration->getOwnerIdQuery(),
+                    $fieldConfiguration->getIndexFieldName(),
+                    $fieldConfiguration->getIndexFieldType()
                 );
-            default:
-                throw new \RuntimeException('TODO (also change exception type)');
+            } elseif ($fieldConfiguration instanceof DatabaseNestedArrayFieldConfiguration) {
+                $nestedBasicFieldsMappings = [];
+                foreach ($fieldConfiguration->getNestedFieldsConfigurations() as $nestedFieldConfiguration) {
+                    $targetTableColumnsTypes = $dbIntrospector->fetchColumnsTypes(
+                        $fieldConfiguration->getDatabaseName(),
+                        $fieldConfiguration->getTableName()
+                    );
+                    $columnName = $nestedFieldDesc->columnName ?? $nestedFieldConfiguration->getIndexFieldName();
+                    $nestedBasicFieldsMappings[] = new BasicFieldMapping(
+                        $columnName,
+                        $targetTableColumnsTypes[$columnName],
+                        $nestedFieldConfiguration->getIndexFieldType()
+                    );
+                }
+
+                $nestedArrayFieldsMappings[$fieldConfiguration->getIndexFieldName()] = new NestedArrayFieldMapping(
+                    $fieldConfiguration->getDatabaseName(),
+                    $fieldConfiguration->getTableName(),
+                    $nestedBasicFieldsMappings,
+                    $fieldConfiguration->getValuesQuery(),
+                    $fieldConfiguration->getOwnerIdQuery(),
+                    $fieldConfiguration->getIndexFieldName()
+                );
+            } elseif ($fieldConfiguration instanceof DatabaseBasicFieldConfiguration) {
+                $columnName = $fieldConfiguration->columnName ?? $fieldConfiguration->getIndexFieldName();
+                $basicFieldsMappings[$fieldConfiguration->getIndexFieldName()] = new BasicFieldMapping(
+                    $columnName,
+                    $columnsTypes[$columnName],
+                    $fieldConfiguration->getIndexFieldType()
+                );
+            }
         }
+
+        if ($fieldMappingStrategy === DatabaseMappingConfiguration::FIELD_MAPPING_STRATEGY_AUTOMATIC) {
+            $ignoredFieldsNames = $mappingConfiguration->ignoredFields ?? [];
+
+            $basicDatabaseMapping = (new BasicMappingFactory($dbIntrospector))->create(
+                $mappingConfiguration->getDatabaseName(),
+                $mappingConfiguration->getTableName(),
+                $mappingConfiguration->indexName ?? $mappingName
+            );
+
+            foreach ($basicDatabaseMapping->getBasicFieldsMappings() as $basicFieldMapping) {
+                $indexFieldName = $basicFieldMapping->getIndexFieldName();
+                if (!isset($basicFieldsMappings[$indexFieldName])
+                        && !in_array($indexFieldName, $ignoredFieldsNames, true)) {
+                    $basicFieldsMappings[] = $basicFieldMapping;
+                }
+            }
+            foreach ($basicDatabaseMapping->getComputedFieldsMappings() as $computedFieldMapping) {
+                $indexFieldName = $computedFieldMapping->getIndexFieldName();
+                if (!isset($computedFieldMappings[$computedFieldMapping->getIndexFieldName()])
+                        && !in_array($indexFieldName, $ignoredFieldsNames, true)) {
+                    $computedFieldMappings[] = $computedFieldMapping;
+                }
+            }
+        }
+
+        return new DatabaseMapping(
+            $mappingConfiguration->getDatabaseName(),
+            $mappingConfiguration->getTableName(),
+            $mappingConfiguration->indexName ?? $mappingName,
+            $basicFieldsMappings,
+            $computedFieldsMappings,
+            $nestedArrayFieldsMappings
+        );
     }
 
     public function buildDataFetcher(string $mappingName): DataFetcherInterface
     {
-        $mappingDesc = $this->getMappingDesc($mappingName);
+        $mappingConfiguration = $this->getMappingConfiguration($mappingName);
 
-        switch ($mappingDesc->type) {
-            case 'database':
-                $databaseMapping = $this->buildDatabaseMapping($mappingName);
-                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
-                $dataConverter = (new DataConverterFactory())->create($connectionSettings);
-                $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
+        if ($mappingConfiguration instanceof DatabaseMappingConfiguration) {
+            $databaseMapping = $this->buildDatabaseMapping($mappingName);
+            $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
+            $dataConverter = (new DataConverterFactory())->create($connectionSettings);
+            $dbIntrospector = (new DatabaseInstrospectorFactory())->create($connectionSettings);
 
-                return new BasicDataFetcher($databaseMapping, $connectionSettings, $dataConverter, $dbIntrospector);
-
-            default:
-                throw new \RuntimeException('TODO (also change exception type)');
+            return new BasicDataFetcher($databaseMapping, $connectionSettings, $dataConverter, $dbIntrospector);
         }
+
+        throw new \RuntimeException('TODO (also change exception type)');
     }
 
     public function buildIndexBuilder(string $mappingName): IndexBuilderInterface
@@ -143,24 +230,27 @@ final class ServiceBuilder implements ServiceBuilderInterface
         return new IndexSynchronizer($dataChangeFetcher, $dataFetcher, $updater);
     }
 
-    private function getMappingDesc(string $mappingName): \stdClass
+    private function getMappingConfiguration(string $mappingName): AbstractMappingConfiguration
     {
-        $mappings = (array)$this->configData->mappings;
+        foreach ($this->configuration->getMappingsConfigurations() as $mappingConfiguration) {
+            if ($mappingConfiguration->getName() === $mappingName) {
+                return $mappingConfiguration;
+            }
+        }
 
-        return $mappings[$mappingName];   // FIXME: exception if not found
+        throw new \InvalidArgumentException("No such mapping: {$mappingName}.");
     }
 
     private function buildDataChangeFetcher(string $mappingName): DataChangeFetcherInterface
     {
-        $mappingDesc = $this->getMappingDesc($mappingName);
+        $mappingConfiguration = $this->getMappingConfiguration($mappingName);
 
-        switch ($mappingDesc->type) {
-            case 'database':
-                $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
-                return new DataChangeFetcher($connectionSettings, $mappingDesc->databaseName);
+        if ($mappingConfiguration instanceof DatabaseMappingConfiguration) {
+            $connectionSettings = $this->buildDatabaseConnectionSettings($mappingName);
 
-            default:
-                throw new \RuntimeException('TODO (also change exception type)');
+            return new DataChangeFetcher($connectionSettings, $mappingConfiguration->getDatabaseName());
         }
+
+        throw new \RuntimeException('TODO (also change exception type)');
     }
 }

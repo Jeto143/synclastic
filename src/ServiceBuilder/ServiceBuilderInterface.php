@@ -5,7 +5,6 @@ namespace Jeto\Synclastic\ServiceBuilder;
 use Elasticsearch\Client as ElasticClient;
 use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
-use Jeto\Synclastic\Database\TriggerCreator\TriggerCreatorInterface;
 use Jeto\Synclastic\Index\Builder\IndexBuilderInterface;
 use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
 use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;

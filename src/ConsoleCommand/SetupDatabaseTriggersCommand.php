@@ -2,11 +2,11 @@
 
 namespace Jeto\Synclastic\ConsoleCommand;
 
+use Jeto\Synclastic\Configuration\Configuration;
+use Jeto\Synclastic\Configuration\DatabaseMappingConfiguration;
 use Jeto\Synclastic\Database\DatabaseConnectionSettings;
 use Jeto\Synclastic\Database\Mapping\DatabaseMappingInterface;
 use Jeto\Synclastic\Database\TriggerCreator\DatabaseTriggerCreatorFactory;
-use Jeto\Synclastic\ServiceBuilder\ServiceBuilder;
-use Jeto\Synclastic\ServiceBuilder\ServiceBuilderInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -27,12 +27,10 @@ final class SetupDatabaseTriggersCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $configData = $this->fetchConfigurationData($input);
-        $mappingNames = $this->fetchMappingNames($configData, $input);
+        $configuration = $this->fetchConfiguration($input);
+        $mappingNames = $this->fetchMappingNames($configuration, $input);
 
-        $serviceBuilder = new ServiceBuilder($configData);
-
-        $databaseMappingsByConnection = $this->computeDatabaseMappingsByConnection($serviceBuilder, $mappingNames);
+        $databaseMappingsByConnection = $this->computeDatabaseMappingsByConnection($configuration, $mappingNames);
 
         if ($databaseMappingsByConnection) {
             $helper = $this->getHelper('question');
@@ -73,19 +71,29 @@ final class SetupDatabaseTriggersCommand extends AbstractCommand
     }
 
     private function computeDatabaseMappingsByConnection(
-        ServiceBuilderInterface $serviceBuilder,
+        Configuration $configuration,
         array $mappingNames
     ): \SplObjectStorage {
         $databaseMappingsByConnection = new \SplObjectStorage();
 
         foreach ($mappingNames as $mappingName) {
-            $connectionSettings = $serviceBuilder->buildDatabaseConnectionSettings($mappingName);
+            $mappingConfiguration = $configuration->getMappingConfiguration($mappingName);
+
+            if (!$mappingConfiguration instanceof DatabaseMappingConfiguration) {
+                continue;
+            }
+
+            $connectionSettings = $mappingConfiguration
+                ->getDatabaseConnectionConfiguration()
+                ->toDatabaseConnectionSettings();
+
             if ($databaseMappingsByConnection->offsetExists($connectionSettings)) {
                 $mappings = $databaseMappingsByConnection[$connectionSettings];
             } else {
                 $mappings = [];
             }
-            $mappings[] = $serviceBuilder->buildDatabaseMapping($mappingName);
+
+            $mappings[] = $mappingConfiguration->toDatabaseMapping();
             $databaseMappingsByConnection[$connectionSettings] = $mappings;
         }
 

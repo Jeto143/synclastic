@@ -2,17 +2,35 @@
 
 namespace Jeto\Synclastic\Configuration;
 
+use Jeto\Synclastic\Index\DataChange\DataChangeFetcherInterface;
+use Jeto\Synclastic\Index\DataFetcher\DataFetcherInterface;
+use Jeto\Synclastic\Index\Definition\IndexDefinitionInterface;
+
 abstract class AbstractMappingConfiguration
 {
-    private string $name;
+    protected string $mappingName;
 
-    public function __construct(string $name)
+    protected string $indexName;
+
+    public function __construct(string $mappingName, string $indexName)
     {
-        $this->name = $name;
+        $this->mappingName = $mappingName;
+        $this->indexName = $indexName;
     }
 
-    public function getName(): string
+    public function getMappingName(): string
     {
-        return $this->name;
+        return $this->mappingName;
     }
+
+    public function getIndexName(): string
+    {
+        return $this->indexName;
+    }
+
+    abstract public function toIndexDefinition(): IndexDefinitionInterface;
+
+    abstract public function toDataFetcher(): DataFetcherInterface;
+
+    abstract public function toDataChangeFetcher(): DataChangeFetcherInterface;
 }

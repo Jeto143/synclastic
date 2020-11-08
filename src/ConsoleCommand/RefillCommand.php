@@ -2,7 +2,10 @@
 
 namespace Jeto\Synclastic\ConsoleCommand;
 
-use Jeto\Synclastic\ServiceBuilder\ServiceBuilder;
+use Jeto\Synclastic\Configuration\Configuration;
+use Jeto\Synclastic\Index\Refiller\IndexRefiller;
+use Jeto\Synclastic\Index\Refiller\IndexRefillerInterface;
+use Jeto\Synclastic\Index\Updater\IndexUpdater;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -24,13 +27,11 @@ final class RefillCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $configData = $this->fetchConfigurationData($input);
-        $mappingNames = $this->fetchMappingNames($configData, $input);
-
-        $serviceBuilder = new ServiceBuilder($configData);
+        $configuration = $this->fetchConfiguration($input);
+        $mappingNames = $this->fetchMappingNames($configuration, $input);
 
         foreach ($mappingNames as $mappingName) {
-            $indexDefinition = $serviceBuilder->buildIndexDefinition($mappingName);
+            $indexDefinition = $configuration->getMappingConfiguration($mappingName)->toIndexDefinition();
 
             $helper = $this->getHelper('question');
             $question = new ConfirmationQuestion(
@@ -43,7 +44,7 @@ final class RefillCommand extends AbstractCommand
             }
 
             $output->writeln("<comment>- [{$mappingName}] Refilling...</comment>");
-            $indexRefiller = $serviceBuilder->buildIndexRefiller($mappingName);
+            $indexRefiller = $this->createIndexRefiller($configuration, $mappingName);
 
             $operations = $indexRefiller->refillIndex($indexDefinition);
             foreach ($operations as $operation) {
@@ -56,5 +57,14 @@ final class RefillCommand extends AbstractCommand
         $output->writeln('<info>Operation successful.</info>');
 
         return Command::SUCCESS;
+    }
+
+    private function createIndexRefiller(Configuration $configuration, string $mappingName): IndexRefillerInterface
+    {
+        $elasticClient = $configuration->getElasticConfiguration()->toElasticClient();
+        $dataFetcher = $configuration->getMappingConfiguration($mappingName)->toDataFetcher();
+        $updater = new IndexUpdater($configuration->getElasticConfiguration()->toElasticClient());
+
+        return new IndexRefiller($elasticClient, $dataFetcher, $updater);
     }
 }

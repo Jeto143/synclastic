@@ -2,6 +2,8 @@
 
 namespace Jeto\Synclastic\Configuration;
 
+use Jeto\Synclastic\Database\DatabaseConnectionSettings;
+
 final class DatabaseConnectionConfiguration
 {
     private string $driver;
@@ -46,5 +48,16 @@ final class DatabaseConnectionConfiguration
     public function getPassword(): ?string
     {
         return $this->password;
+    }
+
+    public function toDatabaseConnectionSettings(): DatabaseConnectionSettings
+    {
+        return new DatabaseConnectionSettings(
+            $this->driver,
+            $this->hostname,
+            $this->port,
+            $this->username,
+            $this->password
+        );
     }
 }

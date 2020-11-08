@@ -2,11 +2,14 @@
 
 namespace Jeto\Synclastic\Configuration;
 
+use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
+use Jeto\Synclastic\Database\Mapping\FieldMappingInterface;
+
 abstract class AbstractDatabaseFieldConfiguration
 {
-    private string $indexFieldName;
+    protected string $indexFieldName;
 
-    private string $indexFieldType;
+    protected string $indexFieldType;
 
     public function __construct(string $indexFieldName, string $indexFieldType)
     {

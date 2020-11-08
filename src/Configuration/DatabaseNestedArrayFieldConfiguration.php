@@ -2,6 +2,12 @@
 
 namespace Jeto\Synclastic\Configuration;
 
+use Jeto\Synclastic\Database\Introspector\DatabaseIntrospectorInterface;
+use Jeto\Synclastic\Database\Mapping\BasicFieldMapping;
+use Jeto\Synclastic\Database\Mapping\FieldMappingInterface;
+use Jeto\Synclastic\Database\Mapping\NestedArrayFieldMapping;
+use Jeto\Synclastic\Database\Mapping\NestedArrayFieldMappingInterface;
+
 final class DatabaseNestedArrayFieldConfiguration extends AbstractDatabaseFieldConfiguration
 {
     private string $databaseName;
@@ -58,5 +64,29 @@ final class DatabaseNestedArrayFieldConfiguration extends AbstractDatabaseFieldC
     public function getOwnerIdQuery(): string
     {
         return $this->ownerIdQuery;
+    }
+
+    public function toNestedArrayFieldMapping(array $nestedColumnsTypes): NestedArrayFieldMappingInterface
+    {
+        $nestedBasicFieldsMappings = [];
+
+        foreach ($this->nestedFieldsConfigurations as $nestedFieldConfiguration) {
+            $nestedColumnName = $nestedFieldDesc->columnName ?? $nestedFieldConfiguration->getIndexFieldName();
+
+            $nestedBasicFieldsMappings[] = new BasicFieldMapping(
+                $nestedColumnName,
+                $nestedColumnsTypes[$nestedColumnName],
+                $nestedFieldConfiguration->getIndexFieldType()
+            );
+        }
+
+        return new NestedArrayFieldMapping(
+            $this->databaseName,
+            $this->tableName,
+            $nestedBasicFieldsMappings,
+            $this->valuesQuery,
+            $this->ownerIdQuery,
+            $this->indexFieldName
+        );
     }
 }

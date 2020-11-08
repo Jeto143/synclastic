@@ -2,6 +2,9 @@
 
 namespace Jeto\Synclastic\Configuration;
 
+use Jeto\Synclastic\Database\Mapping\ComputedFieldMapping;
+use Jeto\Synclastic\Database\Mapping\ComputedFieldMappingInterface;
+
 final class DatabaseComputedFieldConfiguration extends AbstractDatabaseFieldConfiguration
 {
     private string $databaseName;
@@ -45,5 +48,17 @@ final class DatabaseComputedFieldConfiguration extends AbstractDatabaseFieldConf
     public function getOwnerIdQuery(): string
     {
         return $this->ownerIdQuery;
+    }
+
+    public function toComputedFieldMapping(): ComputedFieldMappingInterface
+    {
+        return new ComputedFieldMapping(
+            $this->databaseName,
+            $this->tableName,
+            $this->valueQuery,
+            $this->ownerIdQuery,
+            $this->indexFieldName,
+            $this->indexFieldType
+        );
     }
 }

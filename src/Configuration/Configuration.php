@@ -46,4 +46,15 @@ final class Configuration
     {
         return $this->databaseConnectionsConfigurations;
     }
+
+    public function getMappingConfiguration(string $mappingName): AbstractMappingConfiguration
+    {
+        foreach ($this->mappingsConfigurations as $mappingConfiguration) {
+            if ($mappingConfiguration->getMappingName() === $mappingName) {
+                return $mappingConfiguration;
+            }
+        }
+
+        throw new \InvalidArgumentException("No such mapping: {$mappingName}.");
+    }
 }

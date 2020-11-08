@@ -2,7 +2,10 @@
 
 namespace Jeto\Synclastic\ConsoleCommand;
 
-use Jeto\Synclastic\ServiceBuilder\ServiceBuilder;
+use Jeto\Synclastic\Configuration\Configuration;
+use Jeto\Synclastic\Index\Synchronizer\IndexSynchronizer;
+use Jeto\Synclastic\Index\Synchronizer\IndexSynchronizerInterface;
+use Jeto\Synclastic\Index\Updater\IndexUpdater;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -30,15 +33,15 @@ final class SynchronizeCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $configData = $this->fetchConfigurationData($input);
-        $mappingNames = $this->fetchMappingNames($configData, $input);
+        $configuration = $this->fetchConfiguration($input);
+        $mappingNames = $this->fetchMappingNames($configuration, $input);
         $identifiers = array_filter(explode(',', $input->getOption('identifiers')));
 
-        $serviceBuilder = new ServiceBuilder($configData);
-
         foreach ($mappingNames as $mappingName) {
-            $indexDefinition = $serviceBuilder->buildIndexDefinition($mappingName);
-            $indexSynchronizer = $serviceBuilder->buildIndexSynchronizer($mappingName);
+            $indexDefinition = $configuration->getMappingConfiguration($mappingName)->toIndexDefinition();
+
+            $indexSynchronizer = $this->createIndexSynchronizer($configuration, $mappingName);
+
             if ($identifiers) {
                 $commaSeparatedIds = implode(', ', $identifiers);
                 $output->writeln("<comment>- [{$mappingName}] Synchronizing entries {$commaSeparatedIds}...</comment>");
@@ -56,5 +59,16 @@ final class SynchronizeCommand extends AbstractCommand
         $output->writeln('<info>Operation successful.</info>');
 
         return Command::SUCCESS;
+    }
+
+    private function createIndexSynchronizer(
+        Configuration $configuration,
+        string $mappingName
+    ): IndexSynchronizerInterface {
+        $dataChangeFetcher = $configuration->getMappingConfiguration($mappingName)->toDataChangeFetcher();
+        $dataFetcher = $configuration->getMappingConfiguration($mappingName)->toDataFetcher();
+        $updater = new IndexUpdater($configuration->getElasticConfiguration()->toElasticClient());
+
+        return new IndexSynchronizer($dataChangeFetcher, $dataFetcher, $updater);
     }
 }

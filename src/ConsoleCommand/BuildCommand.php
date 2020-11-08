@@ -2,7 +2,7 @@
 
 namespace Jeto\Synclastic\ConsoleCommand;
 
-use Jeto\Synclastic\ServiceBuilder\ServiceBuilder;
+use Jeto\Synclastic\Index\Builder\IndexBuilder;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -24,13 +24,11 @@ final class BuildCommand extends AbstractCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $configuration = $this->fetchConfigurationData($input);
+        $configuration = $this->fetchConfiguration($input);
         $mappingNames = $this->fetchMappingNames($configuration, $input);
 
-        $serviceBuilder = new ServiceBuilder($configuration);
-
         foreach ($mappingNames as $mappingName) {
-            $indexDefinition = $serviceBuilder->buildIndexDefinition($mappingName);
+            $indexDefinition = $configuration->getMappingConfiguration($mappingName)->toIndexDefinition();
 
             $helper = $this->getHelper('question');
             $question = new ConfirmationQuestion(
@@ -43,7 +41,7 @@ final class BuildCommand extends AbstractCommand
 
             $output->writeln("<comment>- [{$mappingName}] Building...</comment>");
 
-            $indexBuilder = $serviceBuilder->buildIndexBuilder($mappingName);
+            $indexBuilder = new IndexBuilder($configuration->getElasticConfiguration()->toElasticClient());
             $indexBuilder->buildIndex($indexDefinition);
 
             $output->writeln("<info>- [{$mappingName}] Building successful.</info>");

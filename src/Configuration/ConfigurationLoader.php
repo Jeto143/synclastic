@@ -67,6 +67,7 @@ final class ConfigurationLoader
 
                 return new DatabaseMappingConfiguration(
                     $mappingName,
+                    $mappingDesc['indexName'] ?? $mappingName,
                     $databaseConnectionConfig,
                     $mappingDesc['databaseName'],
                     $mappingDesc['tableName'],

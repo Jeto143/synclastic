@@ -5,12 +5,6 @@ namespace Jeto\Synclastic\ConsoleCommand;
 use Jeto\Synclastic\Configuration\AbstractMappingConfiguration;
 use Jeto\Synclastic\Configuration\Configuration;
 use Jeto\Synclastic\Configuration\ConfigurationLoader;
-use Jeto\Synclastic\Configuration\DatabaseBasicFieldConfiguration;
-use Jeto\Synclastic\Configuration\DatabaseComputedFieldConfiguration;
-use Jeto\Synclastic\Configuration\DatabaseConnectionConfiguration;
-use Jeto\Synclastic\Configuration\DatabaseMappingConfiguration;
-use Jeto\Synclastic\Configuration\DatabaseNestedArrayFieldConfiguration;
-use Jeto\Synclastic\Configuration\ElasticConfiguration;
 use Jeto\Synclastic\Index\Operation\IndexOperation;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -30,7 +24,7 @@ abstract class AbstractCommand extends Command
         ;
     }
 
-    protected function fetchConfigurationData(InputInterface $input): Configuration
+    protected function fetchConfiguration(InputInterface $input): Configuration
     {
         $configData = Yaml::parseFile('config.yml', Yaml::PARSE_OBJECT_FOR_MAP);
 
@@ -44,7 +38,7 @@ abstract class AbstractCommand extends Command
 
         return $mappingNames
             ?: array_map(
-                static fn(AbstractMappingConfiguration $mappingConfig) => $mappingConfig->getName(),
+                static fn(AbstractMappingConfiguration $mappingConfig) => $mappingConfig->getMappingName(),
                 $configuration->getMappingsConfigurations()
             );
     }
